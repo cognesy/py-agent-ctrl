@@ -4,3 +4,7 @@ __pycache__/
 dist/
 build/
 .venv/
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
