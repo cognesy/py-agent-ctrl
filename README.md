@@ -1,81 +1,90 @@
 # py-agent-ctrl
 
-Programmatic wrapper for the **Claude Code CLI** — Python port of [cognesy/agent-ctrl](https://github.com/cognesy/agent-ctrl) (PHP).
+Unified Python bridge for CLI coding agents.
 
-Zero dependencies beyond the Python standard library.
+This repo exposes:
 
-## Install
+- a Python API under `py_agent_ctrl`
+- a unified `ctrlagent` CLI
+- direct CLI bridges for `claude`, `codex`, `opencode`, `pi`, and `gemini`
+
+The codebase follows the clean layout described in [docs/dev/architecture.md](docs/dev/architecture.md):
+
+- `apps/` for runnable shells
+- `libs/` for importable code
+- `resources/` for passive assets
+- `docs/` for documentation
+- `tests/` for unit, integration, feature, and regression coverage
+
+## Development
+
+Use `uv` only:
 
 ```bash
-pip install git+https://github.com/cognesy/py-agent-ctrl.git@main
+uv sync --extra dev
+uv run pytest tests/unit tests/integration tests/feature tests/regression
+uv run ctrlagent agents list
 ```
 
-## Usage
+## Python API
 
 ```python
-from agent_ctrl import ClaudeCodeClient
+from py_agent_ctrl import AgentCtrl
 
-# Simple sync
-response = ClaudeCodeClient().execute("Summarise this repo.")
-print(response.text)
-print(response.session_id)
-
-# With options
 response = (
-    ClaudeCodeClient()
-    .with_system_prompt("You are a code analysis assistant.")
-    .with_max_turns(5)
-    .with_cwd("/path/to/project")
-    .execute("List all API endpoints.")
+    AgentCtrl.claude_code()
+    .with_model("claude-sonnet-4-5")
+    .with_permission_mode("bypassPermissions")
+    .execute("Summarize this repository.")
 )
 
-# Session continuity
-r1 = ClaudeCodeClient().execute("Start a multi-turn analysis.")
-r2 = ClaudeCodeClient().resume(r1.session_id).execute("Now summarise what you found.")
-
-# Async streaming with callbacks
-import asyncio
-
-async def main():
-    async for event in ClaudeCodeClient().stream("Explain this codebase."):
-        from agent_ctrl import AssistantEvent
-        if isinstance(event, AssistantEvent):
-            print(event.text, end="", flush=True)
-
-asyncio.run(main())
+print(response.text)
+print(response.session_id)
 ```
 
-## ClaudeCodeClient builder options
+Other bridges use the same top-level facade:
 
-| Method | Description |
-|--------|-------------|
-| `.with_model(model)` | Override the Claude model |
-| `.with_system_prompt(text)` | Replace the default system prompt |
-| `.append_system_prompt(text)` | Append to the default system prompt |
-| `.with_max_turns(n)` | Limit agentic turns |
-| `.with_permission_mode(mode)` | `bypassPermissions` (default) / `acceptEdits` / `default` |
-| `.with_allowed_tools(*tools)` | Pre-approve specific tools, e.g. `"Read"`, `"Edit"` |
-| `.resume(session_id)` | Resume a specific prior session |
-| `.continue_session()` | Resume the most recent session |
-| `.with_cwd(path)` | Working directory for the subprocess |
-| `.with_timeout(seconds)` | Subprocess timeout (default 120s) |
-| `.on_text(fn)` | Callback for each text chunk during async streaming |
-| `.on_tool_use(fn)` | Callback for each tool use during async streaming |
+```python
+from py_agent_ctrl import AgentCtrl
 
-## ClaudeResponse
+AgentCtrl.codex().with_sandbox("workspace-write").execute("Review the tests.")
+AgentCtrl.opencode().with_agent("coder").execute("Refactor the payment flow.")
+AgentCtrl.pi().with_thinking("high").execute("Create an implementation plan.")
+AgentCtrl.gemini().plan_mode().execute("Inspect the architecture.")
+```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `text` | `str` | Concatenated assistant text |
-| `session_id` | `str \| None` | Session ID for resuming |
-| `success` | `bool` | `exit_code == 0 and not is_error` |
-| `tool_calls` | `list[ToolUseContent]` | Tools invoked during the run |
-| `cost_usd` | `float \| None` | Reported cost (if available) |
-| `duration_ms` | `int \| None` | Reported duration (if available) |
-| `events` | `list[StreamEvent]` | All raw typed events |
+## CLI
 
-## Requirements
+```bash
+uv run ctrlagent agents list
+uv run ctrlagent agents capabilities --agent claude-code
+uv run ctrlagent execute --agent claude-code "Summarize this repository."
+uv run ctrlagent resume --agent codex --session thread_123 "Continue."
+uv run ctrlagent continue --agent gemini "Proceed."
+```
 
-- Python 3.12+
-- `claude` CLI installed and on `PATH`: `npm install -g @anthropic-ai/claude-code`
-- `ANTHROPIC_API_KEY` set in the environment
+## Supported Agents
+
+| Agent | Python Facade | CLI Name |
+|-------|---------------|----------|
+| Claude Code | `AgentCtrl.claude_code()` | `claude-code` |
+| Codex | `AgentCtrl.codex()` | `codex` |
+| OpenCode | `AgentCtrl.opencode()` | `opencode` |
+| Pi | `AgentCtrl.pi()` | `pi` |
+| Gemini | `AgentCtrl.gemini()` | `gemini` |
+
+## Migration
+
+This repo is a clean cut from the old flat Claude-only layout.
+
+- old root package: `agent_ctrl`
+- new root package: `py_agent_ctrl`
+- old client: `ClaudeCodeClient`
+- new entrypoint: `AgentCtrl`
+
+See:
+
+- [docs/user/quickstart.md](docs/user/quickstart.md)
+- [docs/user/cli.md](docs/user/cli.md)
+- [docs/user/migration.md](docs/user/migration.md)
+- [resources/skills/upgrade/SKILL.md](resources/skills/upgrade/SKILL.md)
