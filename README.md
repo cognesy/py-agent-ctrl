@@ -28,6 +28,8 @@ uv run ctrlagent agents list
 
 ## Python API
 
+### Execute (blocking)
+
 ```python
 from py_agent_ctrl import AgentCtrl
 
@@ -40,9 +42,27 @@ response = (
 
 print(response.text)
 print(response.session_id)
+print(response.usage)       # TokenUsage with input/output/cache tokens
+print(response.tool_calls)  # list[ToolCall]
 ```
 
-Other bridges use the same top-level facade:
+### Stream (real-time)
+
+```python
+from py_agent_ctrl import AgentCtrl, AgentTextEvent, AgentToolCallEvent
+
+result = AgentCtrl.gemini().yolo().stream("Explain the architecture.")
+
+for event in result:
+    if isinstance(event, AgentTextEvent):
+        print(event.text, end="", flush=True)
+    elif isinstance(event, AgentToolCallEvent):
+        print(f"\n[tool: {event.tool_call.name}]")
+
+print(f"\nexit code: {result.exit_code}")
+```
+
+### Other bridges
 
 ```python
 from py_agent_ctrl import AgentCtrl
@@ -53,12 +73,24 @@ AgentCtrl.pi().with_thinking("high").execute("Create an implementation plan.")
 AgentCtrl.gemini().plan_mode().execute("Inspect the architecture.")
 ```
 
+### Error handling
+
+```python
+from py_agent_ctrl import AgentCtrl, BinaryNotFoundError
+
+try:
+    response = AgentCtrl.claude_code().execute("Hello.")
+except BinaryNotFoundError as e:
+    print(f"Install the agent first: {e.install_hint}")
+```
+
 ## CLI
 
 ```bash
 uv run ctrlagent agents list
 uv run ctrlagent agents capabilities --agent claude-code
 uv run ctrlagent execute --agent claude-code "Summarize this repository."
+uv run ctrlagent stream --agent gemini "Explain the architecture."
 uv run ctrlagent resume --agent codex --session thread_123 "Continue."
 uv run ctrlagent continue --agent gemini "Proceed."
 ```

@@ -1,5 +1,4 @@
 import pytest
-
 from py_agent_ctrl.api.models import AgentResponse, AgentType
 from py_agent_ctrl.cli import main
 
