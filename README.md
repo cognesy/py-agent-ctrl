@@ -49,40 +49,72 @@ print(response.tool_calls)  # list[ToolCall]
 ### Stream (real-time)
 
 ```python
-from py_agent_ctrl import AgentCtrl, AgentTextEvent, AgentToolCallEvent
+from py_agent_ctrl import AgentCtrl, AgentReasoningEvent, AgentTextEvent, AgentToolCallEvent
 
 result = AgentCtrl.gemini().yolo().stream("Explain the architecture.")
 
 for event in result:
     if isinstance(event, AgentTextEvent):
         print(event.text, end="", flush=True)
+    elif isinstance(event, AgentReasoningEvent):
+        print(f"\n[reasoning] {event.text}")
     elif isinstance(event, AgentToolCallEvent):
         print(f"\n[tool: {event.tool_call.name}]")
 
 print(f"\nexit code: {result.exit_code}")
 ```
 
+Streams may also emit richer normalized events such as `AgentPlanUpdateEvent`,
+`AgentUsageEvent`, `AgentWarningEvent`, and `AgentFileChangeEvent` when a
+provider exposes that information.
+
 ### Other bridges
 
 ```python
 from py_agent_ctrl import AgentCtrl
 
+AgentCtrl.make("codex").execute("Review the tests.")
 AgentCtrl.codex().with_sandbox("workspace-write").execute("Review the tests.")
-AgentCtrl.opencode().with_agent("coder").execute("Refactor the payment flow.")
+AgentCtrl.open_code().with_agent("coder").execute("Refactor the payment flow.")
 AgentCtrl.pi().with_thinking("high").execute("Create an implementation plan.")
 AgentCtrl.gemini().plan_mode().execute("Inspect the architecture.")
 ```
 
+### Callbacks and wiretaps
+
+```python
+from py_agent_ctrl import AgentCtrl
+
+response = (
+    AgentCtrl.codex()
+    .on_text(lambda text: print(text, end=""))
+    .on_tool_call(lambda tool_call: print(f"\n[tool: {tool_call.name}]"))
+    .on_complete(lambda response: print(f"\nexit code: {response.exit_code}"))
+    .execute("Summarize this repository.")
+)
+```
+
+For streaming responses, `on_text` receives deduplicated text deltas. The
+underlying `stream(...)` iterator still yields the original normalized events,
+and `on_event` sees those original events before text-specific filtering.
+
 ### Error handling
 
 ```python
-from py_agent_ctrl import AgentCtrl, BinaryNotFoundError
+from py_agent_ctrl import AgentCtrl, BinaryNotFoundError, ProcessTimeoutError
 
 try:
     response = AgentCtrl.claude_code().execute("Hello.")
 except BinaryNotFoundError as e:
     print(f"Install the agent first: {e.install_hint}")
 ```
+
+The core error taxonomy also includes `AgentExecutionError`,
+`WorkingDirectoryNotFoundError`, `ProcessStartError`, `ProcessTimeoutError`,
+`ProcessFailedError`, `JsonDecodeFailureError`, and
+`ProviderParseFailureError`. Current bridge execution returns normalized
+`AgentResponse` / `ProcessOutput` diagnostics where possible and keeps
+`BinaryNotFoundError` for binary preflight failures.
 
 ## CLI
 
@@ -101,7 +133,7 @@ uv run ctrlagent continue --agent gemini "Proceed."
 |-------|---------------|----------|
 | Claude Code | `AgentCtrl.claude_code()` | `claude-code` |
 | Codex | `AgentCtrl.codex()` | `codex` |
-| OpenCode | `AgentCtrl.opencode()` | `opencode` |
+| OpenCode | `AgentCtrl.opencode()` / `AgentCtrl.open_code()` | `opencode` |
 | Pi | `AgentCtrl.pi()` | `pi` |
 | Gemini | `AgentCtrl.gemini()` | `gemini` |
 

@@ -12,7 +12,7 @@ def test_claude_counts_malformed_json_without_losing_valid_text(monkeypatch):
         lambda _request: ["claude", "-p", "ignored"],
     )
     monkeypatch.setattr(
-        "py_agent_ctrl.services.bridges.claude_code.bridge.run_process",
+        "py_agent_ctrl.services.bridges.claude_code.bridge.run_command",
         lambda *args, **kwargs: type("Output", (), {
             "exit_code": 0,
             "stdout": '\n'.join([
@@ -37,7 +37,7 @@ def test_codex_counts_malformed_json_without_losing_valid_thread(monkeypatch):
         lambda _request: ["codex", "exec", "ignored"],
     )
     monkeypatch.setattr(
-        "py_agent_ctrl.services.bridges.codex.bridge.run_process",
+        "py_agent_ctrl.services.bridges.codex.bridge.run_command",
         lambda *args, **kwargs: type("Output", (), {
             "exit_code": 0,
             "stdout": '\n'.join([
@@ -62,7 +62,7 @@ def test_codex_accepts_plain_json_final_output(monkeypatch):
         lambda _request: ["codex", "exec", "ignored"],
     )
     monkeypatch.setattr(
-        "py_agent_ctrl.services.bridges.codex.bridge.run_process",
+        "py_agent_ctrl.services.bridges.codex.bridge.run_command",
         lambda *args, **kwargs: type("Output", (), {
             "exit_code": 0,
             "stdout": '{"directories":["py-agent-ctrl","xcron"]}',
@@ -82,7 +82,7 @@ def test_pi_ignores_user_echo_and_keeps_final_assistant_json(monkeypatch):
         lambda _request: ["pi", "--mode", "json", "ignored"],
     )
     monkeypatch.setattr(
-        "py_agent_ctrl.services.bridges.pi.bridge.run_process",
+        "py_agent_ctrl.services.bridges.pi.bridge.run_command",
         lambda *args, **kwargs: type("Output", (), {
             "exit_code": 0,
             "stdout": "\n".join([
@@ -107,7 +107,7 @@ def test_gemini_extracts_text_and_tool_call_ignoring_malformed_json(monkeypatch)
         lambda _request: ["gemini", "ignored"],
     )
     monkeypatch.setattr(
-        "py_agent_ctrl.services.bridges.gemini.bridge.run_process",
+        "py_agent_ctrl.services.bridges.gemini.bridge.run_command",
         lambda *args, **kwargs: type("Output", (), {
             "exit_code": 0,
             "stdout": "\n".join([
@@ -137,7 +137,7 @@ def test_opencode_extracts_text_and_usage_from_step_finish(monkeypatch):
         lambda _request: ["opencode", "ignored"],
     )
     monkeypatch.setattr(
-        "py_agent_ctrl.services.bridges.opencode.bridge.run_process",
+        "py_agent_ctrl.services.bridges.opencode.bridge.run_command",
         lambda *args, **kwargs: type("Output", (), {
             "exit_code": 0,
             "stdout": "\n".join([

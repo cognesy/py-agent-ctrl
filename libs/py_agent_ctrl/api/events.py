@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from py_agent_ctrl.api.models import ToolCall
+from py_agent_ctrl.api.models import TokenUsage, ToolCall
 
 
 class AgentTextEvent(BaseModel):
@@ -28,12 +28,54 @@ class AgentResultEvent(BaseModel):
     raw: dict[str, Any] | None = None
 
 
+class AgentReasoningEvent(BaseModel):
+    type: Literal["reasoning"] = "reasoning"
+    text: str = ""
+    raw: dict[str, Any] | None = None
+
+
+class AgentPlanUpdateEvent(BaseModel):
+    type: Literal["plan_update"] = "plan_update"
+    plan: Any = None
+    raw: dict[str, Any] | None = None
+
+
+class AgentUsageEvent(BaseModel):
+    type: Literal["usage"] = "usage"
+    usage: TokenUsage
+    raw: dict[str, Any] | None = None
+
+
+class AgentWarningEvent(BaseModel):
+    type: Literal["warning"] = "warning"
+    message: str
+    raw: dict[str, Any] | None = None
+
+
+class AgentFileChangeEvent(BaseModel):
+    type: Literal["file_change"] = "file_change"
+    path: str | None = None
+    action: str | None = None
+    diff: str | None = None
+    raw: dict[str, Any] | None = None
+
+
 class AgentUnknownEvent(BaseModel):
     type: Literal["unknown"] = "unknown"
     raw: dict[str, Any] = Field(default_factory=dict)
 
 
-AgentEvent = AgentTextEvent | AgentToolCallEvent | AgentResultEvent | AgentUnknownEvent
+AgentEvent = (
+    AgentTextEvent
+    | AgentToolCallEvent
+    | AgentResultEvent
+    | AgentReasoningEvent
+    | AgentPlanUpdateEvent
+    | AgentUsageEvent
+    | AgentWarningEvent
+    | AgentFileChangeEvent
+    | AgentUnknownEvent
+)
 
 
 class StreamResult:

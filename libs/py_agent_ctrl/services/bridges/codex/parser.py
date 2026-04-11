@@ -3,7 +3,16 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from py_agent_ctrl.api.events import AgentEvent, AgentResultEvent, AgentTextEvent, AgentToolCallEvent, AgentUnknownEvent
+from py_agent_ctrl.api.events import (
+    AgentEvent,
+    AgentPlanUpdateEvent,
+    AgentReasoningEvent,
+    AgentResultEvent,
+    AgentTextEvent,
+    AgentToolCallEvent,
+    AgentUnknownEvent,
+    AgentUsageEvent,
+)
 from py_agent_ctrl.api.models import AgentResponse, AgentType, TokenUsage, ToolCall
 
 
@@ -58,23 +67,30 @@ def parse_codex_events(raw: dict[str, Any]) -> list[AgentEvent]:
                 raw=raw,
             ), raw=raw)]
         if item_type == "plan_update":
-            return [AgentToolCallEvent(tool_call=ToolCall(
-                id=item_id,
-                name="plan_update",
-                arguments={},
-                output=item.get("plan"),
-                status=item.get("status"),
-                raw=raw,
-            ), raw=raw)]
+            return [
+                AgentPlanUpdateEvent(plan=item.get("plan"), raw=raw),
+                AgentToolCallEvent(tool_call=ToolCall(
+                    id=item_id,
+                    name="plan_update",
+                    arguments={},
+                    output=item.get("plan"),
+                    status=item.get("status"),
+                    raw=raw,
+                ), raw=raw),
+            ]
         if item_type == "reasoning":
-            return [AgentToolCallEvent(tool_call=ToolCall(
-                id=item_id,
-                name="reasoning",
-                arguments={},
-                output=item.get("text"),
-                status=item.get("status"),
-                raw=raw,
-            ), raw=raw)]
+            text = str(item.get("text", "") or "")
+            return [
+                AgentReasoningEvent(text=text, raw=raw),
+                AgentToolCallEvent(tool_call=ToolCall(
+                    id=item_id,
+                    name="reasoning",
+                    arguments={},
+                    output=item.get("text"),
+                    status=item.get("status"),
+                    raw=raw,
+                ), raw=raw),
+            ]
         return [AgentToolCallEvent(tool_call=ToolCall(
             id=item_id,
             name=str(item_type or "unknown"),
@@ -85,7 +101,20 @@ def parse_codex_events(raw: dict[str, Any]) -> list[AgentEvent]:
         ), raw=raw)]
     if event_type == "turn.completed":
         usage = raw.get("usage", {})
-        return [AgentResultEvent(raw=raw), AgentUnknownEvent(raw={"usage": usage})]
+        events: list[AgentEvent] = [AgentResultEvent(raw=raw)]
+        if isinstance(usage, dict):
+            events.append(AgentUsageEvent(
+                usage=TokenUsage(
+                    input_tokens=usage.get("input_tokens"),
+                    output_tokens=usage.get("output_tokens"),
+                    total_tokens=(usage.get("input_tokens", 0) or 0)
+                    + (usage.get("output_tokens", 0) or 0),
+                    cache_read_tokens=usage.get("cached_input_tokens"),
+                ),
+                raw=raw,
+            ))
+        events.append(AgentUnknownEvent(raw={"usage": usage}))
+        return events
     return [AgentUnknownEvent(raw=raw)]
 
 
@@ -103,6 +132,8 @@ def codex_response_from_output(*, events: list[AgentEvent], raw_events: list[dic
             tool_calls.append(event.tool_call)
         elif isinstance(event, AgentResultEvent):
             session_id = event.session_id or session_id
+        elif isinstance(event, AgentUsageEvent):
+            usage = event.usage
         elif isinstance(event, AgentUnknownEvent):
             usage_data = event.raw.get("usage")
             if isinstance(usage_data, dict):

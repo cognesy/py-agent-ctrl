@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from py_agent_ctrl.actions.base import BaseAgentAction
 from py_agent_ctrl.api.events import StreamResult
-from py_agent_ctrl.api.models import AgentRequest, AgentResponse, AgentType, BridgeCapabilities
+from py_agent_ctrl.api.models import (
+    AgentRequest,
+    AgentResponse,
+    AgentType,
+    BridgeCapabilities,
+    ClaudePermissionMode,
+    CodexSandboxMode,
+    GeminiApprovalMode,
+)
 from py_agent_ctrl.services.bridges.claude_code.bridge import ClaudeCodeBridge
 from py_agent_ctrl.services.bridges.codex.bridge import CodexBridge
 from py_agent_ctrl.services.bridges.gemini.bridge import GeminiBridge
@@ -11,16 +19,16 @@ from py_agent_ctrl.services.bridges.pi.bridge import PiBridge
 
 
 class ClaudeCodeAction(BaseAgentAction):
-    def with_permission_mode(self, mode: str) -> ClaudeCodeAction:
-        return self._with_provider_option("permission_mode", mode)
+    def with_permission_mode(self, mode: ClaudePermissionMode | str) -> ClaudeCodeAction:
+        return self._with_provider_option("permission_mode", ClaudePermissionMode(mode).value)
 
     def with_allowed_tools(self, *tools: str) -> ClaudeCodeAction:
         return self._with_provider_option("allowed_tools", list(tools))
 
 
 class CodexAction(BaseAgentAction):
-    def with_sandbox(self, mode: str) -> CodexAction:
-        return self._with_provider_option("sandbox", mode)
+    def with_sandbox(self, mode: CodexSandboxMode | str) -> CodexAction:
+        return self._with_provider_option("sandbox", CodexSandboxMode(mode).value)
 
     def disable_sandbox(self) -> CodexAction:
         return self.with_sandbox("danger-full-access")
@@ -91,8 +99,8 @@ class PiAction(BaseAgentAction):
 
 
 class GeminiAction(BaseAgentAction):
-    def with_approval_mode(self, mode: str) -> GeminiAction:
-        return self._with_provider_option("approval_mode", mode)
+    def with_approval_mode(self, mode: GeminiApprovalMode | str) -> GeminiAction:
+        return self._with_provider_option("approval_mode", GeminiApprovalMode(mode).value)
 
     def yolo(self) -> GeminiAction:
         return self.with_approval_mode("yolo")

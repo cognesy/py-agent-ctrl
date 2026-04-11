@@ -1,3 +1,4 @@
+from py_agent_ctrl.api.events import AgentPlanUpdateEvent, AgentReasoningEvent, AgentUsageEvent
 from py_agent_ctrl.api.models import AgentRequest
 from py_agent_ctrl.services.bridges.codex.command_builder import build_codex_command
 from py_agent_ctrl.services.bridges.codex.parser import codex_response_from_output, parse_codex_events
@@ -30,9 +31,14 @@ def test_codex_builder_and_parser(monkeypatch):
         {"type": "thread.started", "thread_id": "thread_stream"},
         {"type": "item.completed", "item": {"id": "msg_1", "type": "agent_message", "status": "completed", "text": "Hello from codex"}},
         {"type": "item.completed", "item": {"id": "cmd_1", "type": "command_execution", "status": "completed", "command": "echo hi", "output": "hi", "exit_code": 0}},
+        {"type": "item.completed", "item": {"id": "reason_1", "type": "reasoning", "status": "completed", "text": "I should inspect tests."}},
+        {"type": "item.completed", "item": {"id": "plan_1", "type": "plan_update", "status": "completed", "plan": [{"step": "Run tests"}]}},
         {"type": "turn.completed", "usage": {"input_tokens": 9, "cached_input_tokens": 3, "output_tokens": 2}},
     ]
     events = [event for raw in raw_events for event in parse_codex_events(raw)]
+    reasoning_events = [event for event in events if isinstance(event, AgentReasoningEvent)]
+    plan_events = [event for event in events if isinstance(event, AgentPlanUpdateEvent)]
+    usage_events = [event for event in events if isinstance(event, AgentUsageEvent)]
     response = codex_response_from_output(
         events=events,
         raw_events=raw_events,
@@ -45,6 +51,10 @@ def test_codex_builder_and_parser(monkeypatch):
     assert response.usage.input_tokens == 9
     assert response.usage.cache_read_tokens == 3
     assert response.tool_calls[0].name == "bash"
+    assert reasoning_events[0].text == "I should inspect tests."
+    assert plan_events[0].plan == [{"step": "Run tests"}]
+    assert usage_events[0].usage.output_tokens == 2
+    assert [tool.name for tool in response.tool_calls] == ["bash", "reasoning", "plan_update"]
 
 
 def test_opencode_builder_and_parser(monkeypatch):
