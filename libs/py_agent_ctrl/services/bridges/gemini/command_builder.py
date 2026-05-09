@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from py_agent_ctrl.api.models import AgentRequest
 from py_agent_ctrl.services.core.binaries import require_binary
+from py_agent_ctrl.services.core.content import request_prompt_text
 
 
 def build_gemini_command(request: AgentRequest) -> list[str]:
@@ -30,5 +31,5 @@ def build_gemini_command(request: AgentRequest) -> list[str]:
         argv.extend(["--resume", request.resume_session_id])
     if request.provider_options.get("debug"):
         argv.append("--debug")
-    argv.extend(["--prompt", request.prompt])
+    argv.extend(["--prompt", request_prompt_text(request)])
     return argv

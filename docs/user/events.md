@@ -30,7 +30,7 @@ print(f"\nexit code: {result.exit_code}")
 
 | Event | `type` | Stable fields | When emitted |
 | --- | --- | --- | --- |
-| `AgentTextEvent` | `text` | `text`, `raw` | Assistant-facing text output from the provider stream. |
+| `AgentTextEvent` | `text` | `text`, `content`, `raw` | Assistant-facing text output from the provider stream. |
 | `AgentToolCallEvent` | `tool_call` | `tool_call`, `phase`, `raw` | A provider reports tool use, command execution, MCP calls, search, file changes modeled as tools, or another structured action. |
 | `AgentResultEvent` | `result` | `session_id`, `cost_usd`, `duration_ms`, `raw` | A provider emits final or session-level metadata. |
 | `AgentReasoningEvent` | `reasoning` | `text`, `raw` | A provider exposes reasoning/thinking text separately from the final answer. |
@@ -44,7 +44,8 @@ print(f"\nexit code: {result.exit_code}")
 
 `AgentToolCallEvent.tool_call` is a `ToolCall` model. It describes the normalized
 tool snapshot: stable-ish provider ID when available, normalized name and kind,
-arguments, output, error flag, status, lifecycle phase, and raw provider data.
+arguments, output, optional content blocks, error flag, status, lifecycle phase,
+and raw provider data.
 
 `ToolCall.status` describes the provider outcome when it can be normalized:
 
@@ -74,6 +75,28 @@ expose final snapshots, so their phase is inferred from the normalized status.
 The lifecycle fields are additive. Existing `on_tool_call` callbacks still
 receive `ToolCall` snapshots and are not called more often unless a provider
 bridge deliberately emits more user-visible tool events in a future API change.
+
+## Structured Content Blocks
+
+`AgentRequest`, `AgentTextEvent`, `AgentResponse`, and `ToolCall` can carry
+structured content blocks while preserving the existing string fields:
+
+- `TextContentBlock`
+- `ResourceLinkContentBlock`
+- `EmbeddedResourceContentBlock`
+- `ImageContentBlock`
+- `DiffContentBlock`
+- `TerminalContentBlock`
+
+`AgentRequest.prompt`, `AgentTextEvent.text`, and `AgentResponse.text` remain
+the convenience plain-text views. When request content is present, provider
+command builders use deterministic fallback text. For example, a resource link
+is rendered as `[resource: README.md] file:///tmp/README.md`.
+
+Provider-native support is limited and explicit. Codex image references are
+passed to the CLI as `--image` in addition to the fallback prompt text. Embedded
+image data is not inlined into argv. Providers without native support still
+receive the fallback text, so content is visible rather than silently discarded.
 
 ## Stable Versus Provider-specific Data
 

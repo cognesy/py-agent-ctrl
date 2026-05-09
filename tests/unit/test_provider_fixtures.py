@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 from py_agent_ctrl.api.events import AgentTextEvent, AgentToolCallEvent, AgentUnknownEvent
-from py_agent_ctrl.api.models import AgentType, ToolCallPhase, ToolCallStatus, ToolKind
+from py_agent_ctrl.api.models import AgentType, TextContentBlock, ToolCallPhase, ToolCallStatus, ToolKind
 from py_agent_ctrl.services.bridges.claude_code.parser import events_to_response, parse_claude_events
 from py_agent_ctrl.services.bridges.codex.parser import codex_response_from_output, parse_codex_events
 from py_agent_ctrl.services.bridges.gemini.bridge import _gemini_stream_payload_adapter
@@ -75,7 +75,11 @@ def test_claude_code_basic_stream_fixture_matches_normalized_golden_output():
     assert [event.type for event in parse_result.events] == ["text", "tool_call", "result"]
     assert isinstance(parse_result.events[0], AgentTextEvent)
     assert isinstance(parse_result.events[1], AgentToolCallEvent)
+    assert isinstance(parse_result.events[0].content[0], TextContentBlock)
+    assert parse_result.events[0].content[0].text == "pong"
     assert response.text == "pong"
+    assert isinstance(response.content[0], TextContentBlock)
+    assert response.content[0].text == "pong"
     assert response.session_id == "sess-1"
     assert response.cost_usd == 0.01
     assert response.duration_ms == 25

@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from py_agent_ctrl.api.models import TokenUsage, ToolCall, ToolCallPhase
+from py_agent_ctrl.api.models import OutputContentBlock, TokenUsage, ToolCall, ToolCallPhase, text_block
 
 
 class StreamDiagnostics(BaseModel):
@@ -24,7 +24,12 @@ class StreamDiagnostics(BaseModel):
 class AgentTextEvent(BaseModel):
     type: Literal["text"] = "text"
     text: str
+    content: list[OutputContentBlock] = Field(default_factory=list)
     raw: dict[str, Any] | None = None
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.text and not self.content:
+            self.content = [text_block(self.text)]
 
 
 class AgentToolCallEvent(BaseModel):

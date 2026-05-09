@@ -4,6 +4,7 @@ import shutil
 
 from py_agent_ctrl.api.models import AgentRequest
 from py_agent_ctrl.services.core.binaries import require_binary
+from py_agent_ctrl.services.core.content import request_prompt_text
 
 
 def build_claude_command(request: AgentRequest) -> list[str]:
@@ -13,7 +14,7 @@ def build_claude_command(request: AgentRequest) -> list[str]:
     if shutil.which("stdbuf"):
         argv.extend(["stdbuf", "-o0"])
 
-    argv.extend([claude, "-p", request.prompt, "--output-format", "stream-json", "--verbose"])
+    argv.extend([claude, "-p", request_prompt_text(request), "--output-format", "stream-json", "--verbose"])
 
     if request.continue_session:
         argv.append("--continue")

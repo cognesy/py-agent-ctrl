@@ -29,6 +29,9 @@ uv run ctrlagent execute --agent claude-code "Summarize this repository."
 - `.with_additional_dirs([...])`
 - `.with_timeout(...)`
 - `.with_sandbox_driver(...)`
+- `.with_content([...])`
+- `.with_resource(...)`
+- `.with_image(...)`
 - `.resume_session(...)`
 - `.continue_session()`
 - `.on_text(...)`
@@ -38,6 +41,38 @@ uv run ctrlagent execute --agent claude-code "Summarize this repository."
 - `.on_error(...)`
 
 Use `AgentCtrl.make("codex")` or `AgentCtrl.make(AgentType.CODEX)` when the agent type is selected at runtime.
+
+## Structured Content
+
+String prompts remain the default API:
+
+```python
+response = AgentCtrl.codex().execute("Review this repository.")
+```
+
+Advanced callers can attach typed content blocks. The bridge always keeps a
+plain-text fallback, so unsupported providers still receive deterministic prompt
+text instead of silently dropping context.
+
+```python
+from py_agent_ctrl import AgentCtrl, resource_link_block, text_block
+
+response = (
+    AgentCtrl.codex()
+    .with_content(
+        [
+            text_block("Review this file and screenshot."),
+            resource_link_block("file:///tmp/README.md", name="README.md"),
+        ]
+    )
+    .with_image("/tmp/screenshot.png")
+    .execute("")
+)
+```
+
+Current provider-native lowering is intentionally conservative. Codex image
+references are also passed as `--image`; other content is represented in the
+prompt fallback unless a provider bridge explicitly documents native support.
 
 ## Stream Events
 

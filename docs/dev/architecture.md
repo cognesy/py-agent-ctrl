@@ -214,6 +214,29 @@ avoid provider reducers hand-rolling partial start/result merging. It does not
 make provider-native formats interchangeable, and it does not introduce support
 for any external protocol runtime.
 
+## Structured Content
+
+Structured content is additive to the Python API. `AgentRequest.prompt` remains
+the string compatibility surface, while `AgentRequest.content` can carry typed
+blocks for richer callers. Command builders must call
+`services/core/content.py::request_prompt_text(...)` instead of reading
+`request.prompt` directly so every provider receives the same deterministic
+fallback text.
+
+The current content block vocabulary covers:
+
+- text
+- resource links
+- embedded resources
+- image references or data
+- diffs
+- terminal references
+
+Provider-native lowering must be explicit and conservative. Codex image
+references are lowered to the existing `--image` flag. Other providers keep the
+plain-text fallback until their CLI-specific support is researched and tested.
+Do not dereference remote resources or inline raw blobs into argv by default.
+
 ## Internal Execution Pipeline
 
 Provider execution has a shared internal pipeline under

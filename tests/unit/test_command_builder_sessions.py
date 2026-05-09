@@ -1,7 +1,8 @@
 from pathlib import Path
 
 import pytest
-from py_agent_ctrl.api.models import AgentRequest
+from py_agent_ctrl.api.models import AgentRequest, image_data_block, image_ref_block, resource_link_block, text_block
+from py_agent_ctrl.services.bridges.claude_code.command_builder import build_claude_command
 from py_agent_ctrl.services.bridges.codex.bridge import CodexBridge
 from py_agent_ctrl.services.bridges.codex.command_builder import build_codex_command
 from py_agent_ctrl.services.bridges.gemini.command_builder import build_gemini_command
@@ -70,6 +71,58 @@ def test_missing_working_directory_is_rejected_before_binary_lookup(tmp_path):
         CodexBridge().execute(AgentRequest(prompt="go", working_directory=str(tmp_path / "missing")))
 
     assert Path(exc_info.value.cwd) == (tmp_path / "missing").resolve(strict=False)
+
+
+# ── Structured Content Prompt Fallback ─────────────────────────────────────
+
+
+def test_structured_content_lowers_to_text_for_all_command_builders(monkeypatch):
+    _patch(monkeypatch, "py_agent_ctrl.services.bridges.claude_code.command_builder", "claude")
+    _patch(monkeypatch, "py_agent_ctrl.services.bridges.codex.command_builder", "codex")
+    _patch(monkeypatch, "py_agent_ctrl.services.bridges.gemini.command_builder", "gemini")
+    _patch(monkeypatch, "py_agent_ctrl.services.bridges.opencode.command_builder", "opencode")
+    _patch(monkeypatch, "py_agent_ctrl.services.bridges.pi.command_builder", "pi")
+    request = AgentRequest(
+        prompt="go",
+        content=[
+            text_block("Use this context."),
+            resource_link_block("file:///tmp/README.md", name="README.md"),
+        ],
+    )
+    expected = "go\n\nUse this context.\n\n[resource: README.md] file:///tmp/README.md"
+
+    claude_argv = build_claude_command(request)
+
+    assert claude_argv[claude_argv.index("-p") + 1] == expected
+    assert build_codex_command(request)[2] == expected
+    assert build_gemini_command(request)[build_gemini_command(request).index("--prompt") + 1] == expected
+    assert build_opencode_command(request)[-1] == expected
+    assert build_pi_command(request)[-1] == expected
+
+
+def test_codex_image_content_emits_native_image_flag_and_keeps_text_fallback(monkeypatch):
+    _patch(monkeypatch, "py_agent_ctrl.services.bridges.codex.command_builder", "codex")
+    request = AgentRequest(prompt="inspect", content=[image_ref_block("/tmp/screenshot.png")])
+
+    argv = build_codex_command(request)
+
+    assert argv[2] == "inspect\n\n[image: /tmp/screenshot.png]"
+    assert argv[argv.index("--image") + 1] == "/tmp/screenshot.png"
+
+
+def test_codex_existing_image_provider_option_still_works(monkeypatch):
+    _patch(monkeypatch, "py_agent_ctrl.services.bridges.codex.command_builder", "codex")
+    request = AgentRequest(
+        prompt="inspect",
+        content=[image_data_block("iVBORw0KGgo=", mime_type="image/png")],
+        provider_options={"images": ["/tmp/existing.png"]},
+    )
+
+    argv = build_codex_command(request)
+
+    assert argv[2] == "inspect\n\n[image: <image/png>]"
+    assert argv[argv.index("--image") + 1] == "/tmp/existing.png"
+    assert "iVBORw0KGgo=" not in argv
 
 
 # ── Gemini ─────────────────────────────────────────────────────────────────

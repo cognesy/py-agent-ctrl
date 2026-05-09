@@ -7,7 +7,11 @@ from py_agent_ctrl import (
     CodexSandboxMode,
     GeminiApprovalMode,
     GeminiProviderOptions,
+    ImageContentBlock,
+    ResourceLinkContentBlock,
     SandboxDriver,
+    TextContentBlock,
+    text_block,
 )
 from py_agent_ctrl.actions.agents import (
     ClaudeCodeAction,
@@ -123,6 +127,28 @@ def test_builder_is_immutable_original_unchanged():
     modified = base.with_model("new-model")
     assert base._request.model is None
     assert modified._request.model == "new-model"
+
+
+def test_with_content_sets_structured_blocks_immutably_and_preserves_subclass():
+    base = AgentCtrl.codex()
+    modified = base.with_content([text_block("Review this")])
+
+    assert isinstance(modified, CodexAction)
+    assert base._request.content == []
+    assert isinstance(modified._request.content[0], TextContentBlock)
+    assert modified._request.content[0].text == "Review this"
+
+
+def test_with_resource_and_image_append_structured_blocks():
+    action = AgentCtrl.claude_code().with_resource("file:///tmp/README.md", name="README.md").with_image(
+        "/tmp/screenshot.png", mime_type="image/png"
+    )
+
+    assert isinstance(action, ClaudeCodeAction)
+    assert isinstance(action._request.content[0], ResourceLinkContentBlock)
+    assert action._request.content[0].uri == "file:///tmp/README.md"
+    assert isinstance(action._request.content[1], ImageContentBlock)
+    assert action._request.content[1].uri == "/tmp/screenshot.png"
 
 
 def test_invalid_provider_modes_fail_early():

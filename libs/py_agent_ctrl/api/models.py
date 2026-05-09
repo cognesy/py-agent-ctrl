@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -66,6 +67,139 @@ class ToolKind(StrEnum):
     THINK = "think"
     FETCH = "fetch"
     OTHER = "other"
+
+
+class TextContentBlock(BaseModel):
+    type: Literal["text"] = "text"
+    text: str
+
+
+class ResourceLinkContentBlock(BaseModel):
+    type: Literal["resource_link"] = "resource_link"
+    uri: str
+    name: str | None = None
+    mime_type: str | None = None
+    size: int | None = None
+    description: str | None = None
+
+
+class EmbeddedResourceContentBlock(BaseModel):
+    type: Literal["resource"] = "resource"
+    uri: str
+    text: str | None = None
+    blob: str | None = None
+    mime_type: str | None = None
+
+
+class ImageContentBlock(BaseModel):
+    type: Literal["image"] = "image"
+    uri: str | None = None
+    data: str | None = None
+    mime_type: str | None = None
+
+
+class DiffContentBlock(BaseModel):
+    type: Literal["diff"] = "diff"
+    path: str
+    new_text: str
+    old_text: str | None = None
+
+
+class TerminalContentBlock(BaseModel):
+    type: Literal["terminal"] = "terminal"
+    terminal_id: str
+    output: str | None = None
+
+
+type PromptContentBlock = TextContentBlock | ResourceLinkContentBlock | EmbeddedResourceContentBlock | ImageContentBlock
+type OutputContentBlock = PromptContentBlock | DiffContentBlock | TerminalContentBlock
+type ToolCallContentBlock = OutputContentBlock
+
+
+def text_block(text: str) -> TextContentBlock:
+    return TextContentBlock(text=text)
+
+
+def resource_link_block(
+    uri: str,
+    *,
+    name: str | None = None,
+    mime_type: str | None = None,
+    size: int | None = None,
+    description: str | None = None,
+) -> ResourceLinkContentBlock:
+    return ResourceLinkContentBlock(
+        uri=uri,
+        name=name,
+        mime_type=mime_type,
+        size=size,
+        description=description,
+    )
+
+
+def embedded_text_resource_block(
+    uri: str,
+    text: str,
+    *,
+    mime_type: str | None = None,
+) -> EmbeddedResourceContentBlock:
+    return EmbeddedResourceContentBlock(uri=uri, text=text, mime_type=mime_type)
+
+
+def embedded_blob_resource_block(
+    uri: str,
+    blob: str,
+    *,
+    mime_type: str | None = None,
+) -> EmbeddedResourceContentBlock:
+    return EmbeddedResourceContentBlock(uri=uri, blob=blob, mime_type=mime_type)
+
+
+def image_ref_block(uri: str, *, mime_type: str | None = None) -> ImageContentBlock:
+    return ImageContentBlock(uri=uri, mime_type=mime_type)
+
+
+def image_data_block(data: str, *, mime_type: str | None = None) -> ImageContentBlock:
+    return ImageContentBlock(data=data, mime_type=mime_type)
+
+
+def diff_block(path: str, new_text: str, old_text: str | None = None) -> DiffContentBlock:
+    return DiffContentBlock(path=path, new_text=new_text, old_text=old_text)
+
+
+def terminal_ref_block(terminal_id: str, output: str | None = None) -> TerminalContentBlock:
+    return TerminalContentBlock(terminal_id=terminal_id, output=output)
+
+
+def content_blocks_to_text(blocks: Sequence[OutputContentBlock]) -> str:
+    return "\n\n".join(_content_block_to_text(block) for block in blocks)
+
+
+def _content_block_to_text(block: OutputContentBlock) -> str:
+    if isinstance(block, TextContentBlock):
+        return block.text
+    if isinstance(block, ResourceLinkContentBlock):
+        name = block.name or block.uri
+        return f"[resource: {name}] {block.uri}"
+    if isinstance(block, EmbeddedResourceContentBlock):
+        if block.text is not None:
+            return f"[resource: {block.uri}]\n{block.text}"
+        blob_label = block.mime_type or "embedded blob"
+        return f"[resource: {block.uri}] <{blob_label}>"
+    if isinstance(block, ImageContentBlock):
+        if block.uri:
+            return f"[image: {block.uri}]"
+        data_label = block.mime_type or "embedded image"
+        return f"[image: <{data_label}>]"
+    if isinstance(block, DiffContentBlock):
+        if block.old_text is None:
+            return f"[diff: {block.path}]\n{block.new_text}"
+        return f"[diff: {block.path}]\n--- old\n{block.old_text}\n+++ new\n{block.new_text}"
+    if isinstance(block, TerminalContentBlock):
+        if block.output:
+            return f"[terminal: {block.terminal_id}]\n{block.output}"
+        return f"[terminal: {block.terminal_id}]"
+    raise TypeError(f"Unsupported content block: {type(block).__name__}")
 
 
 def normalize_tool_call_status(status: Any, *, is_error: bool = False) -> ToolCallStatus | None:
@@ -175,6 +309,7 @@ class ToolCall(BaseModel):
     kind: ToolKind = ToolKind.OTHER
     arguments: dict[str, Any] = Field(default_factory=dict)
     output: Any = None
+    content: list[ToolCallContentBlock] = Field(default_factory=list)
     is_error: bool = False
     status: ToolCallStatus | None = None
     phase: ToolCallPhase | None = None
@@ -212,6 +347,7 @@ class SessionCapabilities(BaseModel):
 
 class AgentRequest(BaseModel):
     prompt: str
+    content: list[PromptContentBlock] = Field(default_factory=list)
     model: str | None = None
     system_prompt: str | None = None
     append_system_prompt: str | None = None
@@ -300,6 +436,7 @@ class GeminiProviderOptions(BaseModel):
 class AgentResponse(BaseModel):
     agent_type: AgentType
     text: str = ""
+    content: list[OutputContentBlock] = Field(default_factory=list)
     exit_code: int = 0
     execution_id: str = Field(default_factory=lambda: str(uuid4()))
     session_id: str | None = None
@@ -310,6 +447,10 @@ class AgentResponse(BaseModel):
     parse_failures: int = 0
     parse_failure_samples: list[str] = Field(default_factory=list)
     duration_ms: int | None = None
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.text and not self.content:
+            self.content = [text_block(self.text)]
 
     @property
     def success(self) -> bool:

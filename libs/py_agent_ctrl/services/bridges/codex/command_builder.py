@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from py_agent_ctrl.api.models import AgentRequest
 from py_agent_ctrl.services.core.binaries import require_binary
+from py_agent_ctrl.services.core.content import request_image_uris, request_prompt_text
 
 
 def build_codex_command(request: AgentRequest) -> list[str]:
@@ -15,14 +16,14 @@ def build_codex_command(request: AgentRequest) -> list[str]:
         else:
             argv.append(request.resume_session_id or "")
 
-    argv.append(request.prompt)
+    argv.append(request_prompt_text(request))
 
     sandbox = request.provider_options.get("sandbox")
     if sandbox:
         argv.extend(["--sandbox", str(sandbox)])
     if request.model:
         argv.extend(["--model", request.model])
-    for image in request.provider_options.get("images", []):
+    for image in [*request.provider_options.get("images", []), *request_image_uris(request)]:
         argv.extend(["--image", image])
     if request.working_directory:
         argv.extend(["--cd", request.working_directory])

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from py_agent_ctrl.api.models import AgentRequest
 from py_agent_ctrl.services.core.binaries import require_binary
+from py_agent_ctrl.services.core.content import request_prompt_text
 
 
 def build_opencode_command(request: AgentRequest) -> list[str]:
@@ -32,5 +33,5 @@ def build_opencode_command(request: AgentRequest) -> list[str]:
     command = request.provider_options.get("command")
     if command:
         argv.extend(["--command", str(command)])
-    argv.append(request.prompt)
+    argv.append(request_prompt_text(request))
     return argv

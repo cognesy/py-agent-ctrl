@@ -10,7 +10,16 @@ from py_agent_ctrl.actions.execute import execute_request
 from py_agent_ctrl.actions.stream import stream_request
 from py_agent_ctrl.api.contracts import AgentBridge
 from py_agent_ctrl.api.events import AgentEvent, AgentTextEvent, AgentToolCallEvent, StreamResult
-from py_agent_ctrl.api.models import AgentRequest, AgentResponse, BridgeCapabilities, SandboxDriver, ToolCall
+from py_agent_ctrl.api.models import (
+    AgentRequest,
+    AgentResponse,
+    BridgeCapabilities,
+    PromptContentBlock,
+    SandboxDriver,
+    ToolCall,
+    image_ref_block,
+    resource_link_block,
+)
 
 
 @dataclass(frozen=True)
@@ -113,6 +122,34 @@ class BaseAgentAction:
 
     def with_additional_dirs(self, directories: list[str]) -> Self:
         return self._copy(additional_directories=list(directories))
+
+    def with_content(self, blocks: list[PromptContentBlock]) -> Self:
+        return self._copy(content=list(blocks))
+
+    def with_resource(
+        self,
+        uri: str,
+        *,
+        name: str | None = None,
+        mime_type: str | None = None,
+        size: int | None = None,
+        description: str | None = None,
+    ) -> Self:
+        return self._copy(
+            content=[
+                *self._request.content,
+                resource_link_block(
+                    uri,
+                    name=name,
+                    mime_type=mime_type,
+                    size=size,
+                    description=description,
+                ),
+            ]
+        )
+
+    def with_image(self, uri: str, *, mime_type: str | None = None) -> Self:
+        return self._copy(content=[*self._request.content, image_ref_block(uri, mime_type=mime_type)])
 
     def with_timeout(self, seconds: int) -> Self:
         return self._copy(timeout_seconds=seconds)
