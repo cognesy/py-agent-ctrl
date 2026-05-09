@@ -12,7 +12,7 @@ Run these before committing changes:
 uv sync --extra dev
 uv run python -m ruff format --check .
 uv run python -m ruff check .
-uv run python -m mypy libs/py_agent_ctrl
+uv run python -m mypy libs/py_agent_ctrl apps
 uv run python -m pytest -q
 uv run python -m compileall -q apps libs tests
 uv build --wheel
@@ -34,6 +34,12 @@ uv run python -m py_agent_ctrl.cli agents list
 
 Later QA hardening tasks will add a clean wheel install smoke test for the
 installed `ctrlagent` entrypoint.
+
+## Type Checking
+
+Strict mypy covers the importable library under `libs/py_agent_ctrl` and the
+thin runnable shells under `apps`. Tests are intentionally outside the strict
+mypy target for now.
 
 ## Ruff Scope
 

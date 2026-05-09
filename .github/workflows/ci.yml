@@ -17,5 +17,5 @@ jobs:
       - run: uv sync --extra dev
       - run: uv run python -m ruff format --check .
       - run: uv run python -m ruff check .
-      - run: uv run python -m mypy libs/py_agent_ctrl
+      - run: uv run python -m mypy libs/py_agent_ctrl apps
       - run: uv run python -m pytest -q

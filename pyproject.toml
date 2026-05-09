@@ -58,4 +58,4 @@ testpaths = ["tests"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["libs/py_agent_ctrl"]
+files = ["libs/py_agent_ctrl", "apps"]

@@ -24,7 +24,7 @@ Use `uv` only:
 uv sync --extra dev
 uv run python -m ruff format --check .
 uv run python -m ruff check .
-uv run python -m mypy libs/py_agent_ctrl
+uv run python -m mypy libs/py_agent_ctrl apps
 uv run python -m pytest -q
 uv run python -m compileall -q apps libs tests
 uv build --wheel
