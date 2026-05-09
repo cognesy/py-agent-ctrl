@@ -84,3 +84,7 @@ def main(argv: list[str] | None = None) -> int:
     response = action.execute(args.prompt)
     print(response.text)
     return response.exit_code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

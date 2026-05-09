@@ -22,9 +22,18 @@ Use `uv` only:
 
 ```bash
 uv sync --extra dev
-uv run pytest tests/unit tests/integration tests/feature tests/regression
-uv run ctrlagent agents list
+uv run python -m ruff check .
+uv run python -m mypy libs/py_agent_ctrl
+uv run python -m pytest -q
+uv run python -m compileall -q apps libs tests
+uv build --wheel
+uv run python -m py_agent_ctrl.cli agents list
 ```
+
+Prefer `uv run python -m ...` for Python tools. That form avoids stale
+virtualenv console-script shebangs and matches the optional workflow command
+shape. See [docs/dev/quality.md](docs/dev/quality.md) for the full local quality
+lane.
 
 ## Python API
 
