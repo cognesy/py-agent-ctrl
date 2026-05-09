@@ -1,0 +1,4 @@
+{"type":"session","version":3,"id":"pi-session","cwd":"/tmp","timestamp":"2025-01-01T00:00:00Z"}
+{"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"Hello"},"message":{}}
+{"type":"tool_execution_end","toolCallId":"tool-1","toolName":"bash","result":{"ok":true},"isError":false}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":" world"}],"usage":{"input":3,"output":5,"cacheRead":0,"cacheWrite":2,"totalTokens":10,"cost":{"total":0.12}}}}

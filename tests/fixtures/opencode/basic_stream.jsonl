@@ -1,0 +1,4 @@
+{"type":"step_start","timestamp":1,"sessionID":"sess_stream","part":{"messageID":"msg_1","id":"part_1","snapshot":"snap"}}
+{"type":"text","timestamp":2,"sessionID":"sess_stream","part":{"messageID":"msg_1","id":"part_2","text":"Hello OpenCode"}}
+{"type":"tool_use","timestamp":3,"sessionID":"sess_stream","part":{"messageID":"msg_1","id":"part_3","callID":"call_1","tool":"bash","state":{"status":"completed","input":{"command":"pwd"},"output":{"cwd":"/tmp"}}}}
+{"type":"step_finish","timestamp":4,"sessionID":"sess_stream","part":{"messageID":"msg_1","id":"part_4","cost":0.42,"tokens":{"input":11,"output":5,"reasoning":1,"cache":{"read":2,"write":1}}}}

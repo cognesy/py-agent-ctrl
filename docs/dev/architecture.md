@@ -144,12 +144,72 @@ Non-responsibilities:
 Typical files:
 
 - `services/core/subprocess.py`
+- `services/core/parsing.py`
+- `services/core/pipeline.py`
 - `services/core/binaries.py`
 - `services/core/env.py`
 - `services/bridges/<provider>/models.py`
 - `services/bridges/<provider>/bridge.py`
 - `services/bridges/<provider>/command_builder.py`
 - `services/bridges/<provider>/parser.py`
+
+## Internal Parser Contract
+
+Provider JSONL parsing has a shared internal contract under
+`services/core/parsing.py`.
+
+The contract is deliberately internal:
+
+- it is not ACP support
+- it is not a public wire protocol
+- it does not replace provider-native CLI formats
+- it does not make provider event semantics portable when the providers differ
+
+Its job is to keep the repeated mechanics in one place:
+
+- consume JSONL stdout with bounded parse diagnostics
+- retain raw provider payloads for `AgentResponse.raw_response`
+- call the provider-specific `parse_*_events(...)` mapper
+- pass normalized events and raw payloads into the provider-specific response
+  reducer
+- expose stream diagnostics through `StreamResult.diagnostics`
+
+Provider packages still own provider meaning. Their `parser.py` modules decide
+how native records become `AgentEvent` instances and how aggregate events become
+`AgentResponse` fields such as text, session ID, usage, cost, and tool calls.
+Their `bridge.py` modules own CLI command execution and any provider-specific
+stream behavior that cannot be represented by a single raw payload. Gemini's
+stream-time `tool_use` / `tool_result` pairing is the current example.
+
+Fixture tests under `tests/fixtures/<provider>/` and
+`tests/unit/test_provider_fixtures.py` are the regression contract for this
+layer. New providers or parser changes should add replayable JSONL fixtures
+before changing bridge behavior.
+
+## Internal Execution Pipeline
+
+Provider execution has a shared internal pipeline under
+`services/core/pipeline.py`.
+
+The pipeline owns the repeated flow that used to live in every bridge:
+
+1. parse aggregate stdout or streamed JSONL records;
+2. record valid raw provider payloads;
+3. emit normalized provider events through the parser contract;
+4. keep parse diagnostics attached to the execution state;
+5. reduce accumulated state through the provider reducer;
+6. expose stream diagnostics through `StreamResult`.
+
+The bridge still owns provider command construction and provider-specific
+stream behavior. The pipeline intentionally does not know how to build a Codex,
+Claude, Gemini, OpenCode, or Pi command. It receives a `CommandSpec` and a
+provider parser/reducer pair.
+
+Most providers use the default stream behavior: yield the same normalized
+events that are stored in the execution state. Providers that need different
+live stream emission can pass a narrow stream payload adapter. Gemini uses this
+for live `tool_use` / `tool_result` pairing while the pipeline still records
+the original raw payloads and parser events for aggregate reduction.
 
 ## Bridge Split
 

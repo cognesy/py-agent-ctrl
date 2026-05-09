@@ -1,20 +1,24 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
-
-from py_agent_ctrl.api.events import AgentEvent, StreamDiagnostics, StreamResult
+from py_agent_ctrl.api.events import StreamResult
 from py_agent_ctrl.api.models import AgentRequest, AgentResponse, AgentType, BridgeCapabilities
 from py_agent_ctrl.services.bridges.claude_code.command_builder import build_claude_command
 from py_agent_ctrl.services.bridges.claude_code.parser import events_to_response, parse_claude_events
 from py_agent_ctrl.services.core.env import agent_env
+from py_agent_ctrl.services.core.parsing import (
+    FunctionEventParser,
+    FunctionResponseReducer,
+)
 from py_agent_ctrl.services.core.paths import normalize_request_paths
+from py_agent_ctrl.services.core.pipeline import ProviderExecutionPipeline
 from py_agent_ctrl.services.core.subprocess import (
     CommandSpec,
-    JsonParseDiagnostics,
-    iter_json_lines,
     run_command,
-    stream_command_json_lines,
 )
+
+_CLAUDE_EVENT_PARSER = FunctionEventParser(AgentType.CLAUDE_CODE, parse_claude_events)
+_CLAUDE_RESPONSE_REDUCER = FunctionResponseReducer(AgentType.CLAUDE_CODE, events_to_response)
+_CLAUDE_PIPELINE = ProviderExecutionPipeline(_CLAUDE_EVENT_PARSER, _CLAUDE_RESPONSE_REDUCER)
 
 
 class ClaudeCodeBridge:
@@ -52,26 +56,7 @@ class ClaudeCodeBridge:
             timeout_seconds=request.timeout_seconds,
         )
         output = run_command(command)
-        events: list[AgentEvent] = []
-        raw_events: list[dict[str, object]] = []
-        parse_failures = 0
-        parse_failure_samples: list[str] = []
-        for payload, raw_line in iter_json_lines(output.stdout):
-            if payload is None:
-                parse_failures += 1
-                if len(parse_failure_samples) < 5:
-                    parse_failure_samples.append(raw_line)
-                continue
-            raw_events.append(payload)
-            events.extend(parse_claude_events(payload))
-
-        return events_to_response(
-            events=events,
-            raw_events=raw_events,
-            exit_code=output.exit_code,
-            parse_failures=parse_failures,
-            parse_failure_samples=parse_failure_samples,
-        )
+        return _CLAUDE_PIPELINE.parse_output(output)
 
     def stream(self, request: AgentRequest) -> StreamResult:
         request = normalize_request_paths(request)
@@ -81,24 +66,4 @@ class ClaudeCodeBridge:
             env=agent_env(AgentType.CLAUDE_CODE, request.provider_options),
             timeout_seconds=request.timeout_seconds,
         )
-        json_diagnostics = JsonParseDiagnostics()
-        gen, get_exit_code = stream_command_json_lines(command, diagnostics=json_diagnostics)
-
-        def _events() -> Iterator[AgentEvent]:
-            for payload, _raw_line in gen:
-                if payload is None:
-                    continue
-                yield from parse_claude_events(payload)
-
-        return StreamResult(
-            _events(),
-            get_exit_code,
-            lambda: StreamDiagnostics(
-                parse_failures=json_diagnostics.parse_failures,
-                skipped_non_json_lines=json_diagnostics.skipped_non_json_lines,
-                overlong_lines=json_diagnostics.overlong_lines,
-                parse_failure_samples=list(json_diagnostics.parse_failure_samples),
-                command_preview=command.argv[:5],
-                cwd=command.cwd,
-            ),
-        )
+        return _CLAUDE_PIPELINE.stream_command(command)

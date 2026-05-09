@@ -1,20 +1,24 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
-
-from py_agent_ctrl.api.events import AgentEvent, StreamDiagnostics, StreamResult
+from py_agent_ctrl.api.events import StreamResult
 from py_agent_ctrl.api.models import AgentRequest, AgentResponse, AgentType, BridgeCapabilities
 from py_agent_ctrl.services.bridges.pi.command_builder import build_pi_command
 from py_agent_ctrl.services.bridges.pi.parser import parse_pi_events, pi_response_from_output
 from py_agent_ctrl.services.core.env import agent_env
+from py_agent_ctrl.services.core.parsing import (
+    FunctionEventParser,
+    FunctionResponseReducer,
+)
 from py_agent_ctrl.services.core.paths import normalize_request_paths
+from py_agent_ctrl.services.core.pipeline import ProviderExecutionPipeline
 from py_agent_ctrl.services.core.subprocess import (
     CommandSpec,
-    JsonParseDiagnostics,
-    iter_json_lines,
     run_command,
-    stream_command_json_lines,
 )
+
+_PI_EVENT_PARSER = FunctionEventParser(AgentType.PI, parse_pi_events)
+_PI_RESPONSE_REDUCER = FunctionResponseReducer(AgentType.PI, pi_response_from_output)
+_PI_PIPELINE = ProviderExecutionPipeline(_PI_EVENT_PARSER, _PI_RESPONSE_REDUCER)
 
 
 class PiBridge:
@@ -51,25 +55,7 @@ class PiBridge:
             timeout_seconds=request.timeout_seconds,
         )
         output = run_command(command)
-        events: list[AgentEvent] = []
-        raw_events: list[dict[str, object]] = []
-        failures = 0
-        samples: list[str] = []
-        for payload, raw_line in iter_json_lines(output.stdout):
-            if payload is None:
-                failures += 1
-                if len(samples) < 5:
-                    samples.append(raw_line)
-                continue
-            raw_events.append(payload)
-            events.extend(parse_pi_events(payload))
-        return pi_response_from_output(
-            events=events,
-            raw_events=raw_events,
-            exit_code=output.exit_code,
-            parse_failures=failures,
-            parse_failure_samples=samples,
-        )
+        return _PI_PIPELINE.parse_output(output)
 
     def stream(self, request: AgentRequest) -> StreamResult:
         request = normalize_request_paths(request)
@@ -79,24 +65,4 @@ class PiBridge:
             env=agent_env(AgentType.PI, request.provider_options),
             timeout_seconds=request.timeout_seconds,
         )
-        json_diagnostics = JsonParseDiagnostics()
-        gen, get_exit_code = stream_command_json_lines(command, diagnostics=json_diagnostics)
-
-        def _events() -> Iterator[AgentEvent]:
-            for payload, _raw_line in gen:
-                if payload is None:
-                    continue
-                yield from parse_pi_events(payload)
-
-        return StreamResult(
-            _events(),
-            get_exit_code,
-            lambda: StreamDiagnostics(
-                parse_failures=json_diagnostics.parse_failures,
-                skipped_non_json_lines=json_diagnostics.skipped_non_json_lines,
-                overlong_lines=json_diagnostics.overlong_lines,
-                parse_failure_samples=list(json_diagnostics.parse_failure_samples),
-                command_preview=command.argv[:5],
-                cwd=command.cwd,
-            ),
-        )
+        return _PI_PIPELINE.stream_command(command)
