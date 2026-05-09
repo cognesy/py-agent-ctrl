@@ -3,7 +3,15 @@ from __future__ import annotations
 from typing import Any
 
 from py_agent_ctrl.api.events import AgentEvent, AgentResultEvent, AgentTextEvent, AgentToolCallEvent, AgentUnknownEvent
-from py_agent_ctrl.api.models import AgentResponse, AgentType, TokenUsage, ToolCall, ToolCallStatus, infer_tool_kind
+from py_agent_ctrl.api.models import (
+    AgentResponse,
+    AgentType,
+    TokenUsage,
+    ToolCall,
+    ToolCallPhase,
+    ToolCallStatus,
+    infer_tool_kind,
+)
 from py_agent_ctrl.services.bridges.claude_code.models import (
     ClaudeAssistantEvent,
     ClaudeResultEvent,
@@ -13,6 +21,7 @@ from py_agent_ctrl.services.bridges.claude_code.models import (
     ClaudeToolUseContent,
     ClaudeUsage,
 )
+from py_agent_ctrl.services.core.tool_calls import ToolCallLifecycleTracker
 
 
 def parse_claude_events(raw: dict[str, Any]) -> list[AgentEvent]:
@@ -39,8 +48,10 @@ def parse_claude_events(raw: dict[str, Any]) -> list[AgentEvent]:
                             kind=infer_tool_kind(item.name),
                             arguments=item.input,
                             status=ToolCallStatus.PENDING,
+                            phase=ToolCallPhase.STARTED,
                             raw=raw,
                         ),
+                        phase=ToolCallPhase.STARTED,
                         raw=raw,
                     )
                 )
@@ -91,7 +102,7 @@ def events_to_response(
     parse_failure_samples: list[str],
 ) -> AgentResponse:
     text_parts: list[str] = []
-    tool_calls: list[ToolCall] = []
+    tool_call_tracker = ToolCallLifecycleTracker()
     session_id: str | None = None
     cost_usd: float | None = None
     duration_ms: int | None = None
@@ -101,7 +112,7 @@ def events_to_response(
         if isinstance(event, AgentTextEvent):
             text_parts.append(event.text)
         elif isinstance(event, AgentToolCallEvent):
-            tool_calls.append(event.tool_call)
+            tool_call_tracker.apply_event(event)
         elif isinstance(event, AgentResultEvent):
             session_id = event.session_id or session_id
             cost_usd = event.cost_usd
@@ -118,7 +129,7 @@ def events_to_response(
         session_id=session_id,
         cost_usd=cost_usd,
         usage=usage,
-        tool_calls=tool_calls,
+        tool_calls=tool_call_tracker.snapshots(),
         raw_response=raw_events,
         parse_failures=parse_failures,
         parse_failure_samples=parse_failure_samples,

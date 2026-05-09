@@ -47,6 +47,15 @@ class ToolCallStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class ToolCallPhase(StrEnum):
+    STARTED = "started"
+    UPDATED = "updated"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    SNAPSHOT = "snapshot"
+
+
 class ToolKind(StrEnum):
     READ = "read"
     EDIT = "edit"
@@ -76,6 +85,26 @@ def normalize_tool_call_status(status: Any, *, is_error: bool = False) -> ToolCa
     if normalized in {"cancelled", "canceled"}:
         return ToolCallStatus.CANCELLED
     return None
+
+
+def infer_tool_call_phase(status: ToolCallStatus | str | None, *, fallback: ToolCallPhase = ToolCallPhase.SNAPSHOT) -> ToolCallPhase:
+    if status is None:
+        return fallback
+    try:
+        normalized_status = ToolCallStatus(status)
+    except ValueError:
+        return fallback
+    if normalized_status is ToolCallStatus.PENDING:
+        return ToolCallPhase.STARTED
+    if normalized_status is ToolCallStatus.IN_PROGRESS:
+        return ToolCallPhase.UPDATED
+    if normalized_status is ToolCallStatus.COMPLETED:
+        return ToolCallPhase.COMPLETED
+    if normalized_status is ToolCallStatus.FAILED:
+        return ToolCallPhase.FAILED
+    if normalized_status is ToolCallStatus.CANCELLED:
+        return ToolCallPhase.CANCELLED
+    return fallback
 
 
 def infer_tool_kind(name: str | None = None, *, event_type: str | None = None) -> ToolKind:
@@ -148,6 +177,7 @@ class ToolCall(BaseModel):
     output: Any = None
     is_error: bool = False
     status: ToolCallStatus | None = None
+    phase: ToolCallPhase | None = None
     raw: dict[str, Any] | None = None
 
 

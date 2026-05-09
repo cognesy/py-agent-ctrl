@@ -1,5 +1,5 @@
 from py_agent_ctrl.api.events import AgentResultEvent, AgentTextEvent, AgentToolCallEvent
-from py_agent_ctrl.api.models import AgentRequest, ToolCallStatus, ToolKind
+from py_agent_ctrl.api.models import AgentRequest, ToolCallPhase, ToolCallStatus, ToolKind
 from py_agent_ctrl.services.bridges.claude_code.command_builder import build_claude_command
 from py_agent_ctrl.services.bridges.claude_code.parser import events_to_response, parse_claude_event
 
@@ -64,6 +64,7 @@ def test_parse_claude_events_to_normalized_response():
     assert response.tool_calls[0].name == "Read"
     assert response.tool_calls[0].kind is ToolKind.READ
     assert response.tool_calls[0].status is ToolCallStatus.PENDING
+    assert response.tool_calls[0].phase is ToolCallPhase.STARTED
 
 
 def test_events_to_response_extracts_usage_from_result_event():
@@ -118,3 +119,5 @@ def test_assistant_event_can_emit_text_and_tool_call():
     events = parse_claude_events(raw)
 
     assert [event.type for event in events] == ["text", "tool_call"]
+    assert events[1].phase is ToolCallPhase.STARTED
+    assert events[1].tool_call.phase is ToolCallPhase.STARTED

@@ -10,6 +10,8 @@ from py_agent_ctrl.api.models import (
     AgentType,
     BridgeCapabilities,
     ToolCall,
+    ToolCallPhase,
+    infer_tool_call_phase,
     infer_tool_kind,
     normalize_tool_call_status,
 )
@@ -49,6 +51,7 @@ def _gemini_stream_payload_adapter() -> StreamPayloadAdapter:
             tool_id = str(payload.get("tool_id", ""))
             tool_use = pending_tools.pop(tool_id, {})
             is_error = str(payload.get("status", "")) == "error"
+            status = normalize_tool_call_status(payload.get("status"), is_error=is_error)
             return [
                 AgentToolCallEvent(
                     tool_call=ToolCall(
@@ -58,9 +61,11 @@ def _gemini_stream_payload_adapter() -> StreamPayloadAdapter:
                         arguments=dict(tool_use.get("parameters", {})),
                         output=payload.get("output") or payload.get("error"),
                         is_error=is_error,
-                        status=normalize_tool_call_status(payload.get("status"), is_error=is_error),
+                        status=status,
+                        phase=infer_tool_call_phase(status, fallback=ToolCallPhase.COMPLETED),
                         raw=payload,
                     ),
+                    phase=infer_tool_call_phase(status, fallback=ToolCallPhase.COMPLETED),
                     raw=payload,
                 )
             ]

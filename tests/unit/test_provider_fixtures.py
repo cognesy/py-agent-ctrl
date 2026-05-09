@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 from py_agent_ctrl.api.events import AgentTextEvent, AgentToolCallEvent, AgentUnknownEvent
-from py_agent_ctrl.api.models import AgentType, ToolCallStatus, ToolKind
+from py_agent_ctrl.api.models import AgentType, ToolCallPhase, ToolCallStatus, ToolKind
 from py_agent_ctrl.services.bridges.claude_code.parser import events_to_response, parse_claude_events
 from py_agent_ctrl.services.bridges.codex.parser import codex_response_from_output, parse_codex_events
 from py_agent_ctrl.services.bridges.gemini.bridge import _gemini_stream_payload_adapter
@@ -84,6 +84,7 @@ def test_claude_code_basic_stream_fixture_matches_normalized_golden_output():
     assert response.tool_calls[0].name == "Read"
     assert response.tool_calls[0].kind is ToolKind.READ
     assert response.tool_calls[0].status is ToolCallStatus.PENDING
+    assert response.tool_calls[0].phase is ToolCallPhase.STARTED
 
 
 def test_codex_basic_stream_fixture_matches_normalized_golden_output():
@@ -113,9 +114,11 @@ def test_codex_basic_stream_fixture_matches_normalized_golden_output():
     assert response.tool_calls[0].name == "bash"
     assert response.tool_calls[0].kind is ToolKind.EXECUTE
     assert response.tool_calls[0].status is ToolCallStatus.FAILED
+    assert response.tool_calls[0].phase is ToolCallPhase.FAILED
     assert response.tool_calls[0].raw["item"]["status"] == "completed"
     assert response.tool_calls[1].name == "web_search"
     assert response.tool_calls[1].kind is ToolKind.SEARCH
+    assert response.tool_calls[1].phase is ToolCallPhase.COMPLETED
 
 
 def test_malformed_and_unknown_fixture_records_parse_failures_without_crashing():
@@ -151,6 +154,7 @@ def test_gemini_basic_stream_fixture_matches_normalized_golden_output():
     assert response.tool_calls[0].name == "read_file"
     assert response.tool_calls[0].kind is ToolKind.READ
     assert response.tool_calls[0].status is ToolCallStatus.COMPLETED
+    assert response.tool_calls[0].phase is ToolCallPhase.COMPLETED
 
 
 def test_gemini_stream_adapter_preserves_tool_pairing_for_live_events():
@@ -176,6 +180,8 @@ def test_gemini_stream_adapter_preserves_tool_pairing_for_live_events():
     assert streamed_events[2].tool_call.name == "read_file"
     assert streamed_events[2].tool_call.kind is ToolKind.READ
     assert streamed_events[2].tool_call.status is ToolCallStatus.COMPLETED
+    assert streamed_events[2].phase is ToolCallPhase.COMPLETED
+    assert streamed_events[2].tool_call.phase is ToolCallPhase.COMPLETED
 
 
 def test_opencode_basic_stream_fixture_matches_normalized_golden_output():
@@ -198,6 +204,7 @@ def test_opencode_basic_stream_fixture_matches_normalized_golden_output():
     assert response.tool_calls[0].name == "bash"
     assert response.tool_calls[0].kind is ToolKind.EXECUTE
     assert response.tool_calls[0].status is ToolCallStatus.COMPLETED
+    assert response.tool_calls[0].phase is ToolCallPhase.COMPLETED
 
 
 def test_pi_basic_stream_fixture_matches_normalized_golden_output():
@@ -220,6 +227,7 @@ def test_pi_basic_stream_fixture_matches_normalized_golden_output():
     assert response.tool_calls[0].name == "bash"
     assert response.tool_calls[0].kind is ToolKind.EXECUTE
     assert response.tool_calls[0].status is ToolCallStatus.COMPLETED
+    assert response.tool_calls[0].phase is ToolCallPhase.COMPLETED
 
 
 def test_parse_result_rejects_wrong_provider_reducer():

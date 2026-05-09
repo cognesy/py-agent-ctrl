@@ -1,5 +1,5 @@
 from py_agent_ctrl.api.events import AgentPlanUpdateEvent, AgentReasoningEvent, AgentUsageEvent
-from py_agent_ctrl.api.models import AgentRequest, ToolCallStatus, ToolKind
+from py_agent_ctrl.api.models import AgentRequest, ToolCallPhase, ToolCallStatus, ToolKind
 from py_agent_ctrl.services.bridges.codex.command_builder import build_codex_command
 from py_agent_ctrl.services.bridges.codex.parser import codex_response_from_output, parse_codex_events
 from py_agent_ctrl.services.bridges.gemini.bridge import GeminiBridge
@@ -75,6 +75,7 @@ def test_codex_builder_and_parser(monkeypatch):
     assert response.tool_calls[0].name == "bash"
     assert response.tool_calls[0].kind is ToolKind.EXECUTE
     assert response.tool_calls[0].status is ToolCallStatus.COMPLETED
+    assert response.tool_calls[0].phase is ToolCallPhase.COMPLETED
     assert reasoning_events[0].text == "I should inspect tests."
     assert plan_events[0].plan == [{"step": "Run tests"}]
     assert usage_events[0].usage.output_tokens == 2
@@ -84,6 +85,11 @@ def test_codex_builder_and_parser(monkeypatch):
         ToolCallStatus.COMPLETED,
         ToolCallStatus.COMPLETED,
         ToolCallStatus.COMPLETED,
+    ]
+    assert [tool.phase for tool in response.tool_calls] == [
+        ToolCallPhase.COMPLETED,
+        ToolCallPhase.COMPLETED,
+        ToolCallPhase.COMPLETED,
     ]
 
 
@@ -154,6 +160,7 @@ def test_opencode_builder_and_parser(monkeypatch):
     assert response.tool_calls[0].name == "bash"
     assert response.tool_calls[0].kind is ToolKind.EXECUTE
     assert response.tool_calls[0].status is ToolCallStatus.COMPLETED
+    assert response.tool_calls[0].phase is ToolCallPhase.COMPLETED
 
 
 def test_pi_builder_and_parser(monkeypatch):
@@ -212,6 +219,7 @@ def test_pi_builder_and_parser(monkeypatch):
     assert response.tool_calls[0].name == "bash"
     assert response.tool_calls[0].kind is ToolKind.EXECUTE
     assert response.tool_calls[0].status is ToolCallStatus.COMPLETED
+    assert response.tool_calls[0].phase is ToolCallPhase.COMPLETED
 
 
 def test_gemini_builder_and_parser(monkeypatch):
@@ -254,6 +262,7 @@ def test_gemini_builder_and_parser(monkeypatch):
     assert response.tool_calls[0].name == "read_file"
     assert response.tool_calls[0].kind is ToolKind.READ
     assert response.tool_calls[0].status is ToolCallStatus.COMPLETED
+    assert response.tool_calls[0].phase is ToolCallPhase.COMPLETED
 
 
 def test_provider_tool_status_normalization():
@@ -271,6 +280,8 @@ def test_provider_tool_status_normalization():
         }
     )[0]
     assert codex_failed.tool_call.status is ToolCallStatus.FAILED
+    assert codex_failed.tool_call.phase is ToolCallPhase.FAILED
+    assert codex_failed.phase is ToolCallPhase.FAILED
     assert codex_failed.tool_call.kind is ToolKind.EXECUTE
     assert codex_failed.tool_call.raw["item"]["status"] == "completed"
 
@@ -288,6 +299,8 @@ def test_provider_tool_status_normalization():
         }
     )[0]
     assert codex_cancelled.tool_call.status is ToolCallStatus.CANCELLED
+    assert codex_cancelled.tool_call.phase is ToolCallPhase.CANCELLED
+    assert codex_cancelled.phase is ToolCallPhase.CANCELLED
     assert codex_cancelled.tool_call.kind is ToolKind.OTHER
     assert codex_cancelled.tool_call.raw["item"]["status"] == "cancelled"
 
@@ -302,6 +315,8 @@ def test_provider_tool_status_normalization():
         }
     )[0]
     assert opencode_unknown.tool_call.status is None
+    assert opencode_unknown.tool_call.phase is ToolCallPhase.SNAPSHOT
+    assert opencode_unknown.phase is ToolCallPhase.SNAPSHOT
     assert opencode_unknown.tool_call.kind is ToolKind.OTHER
     assert opencode_unknown.tool_call.raw["part"]["state"]["status"] == "provider-specific"
 
@@ -342,6 +357,7 @@ def test_codex_tool_kind_classification_for_known_item_types():
     for item, expected_kind in samples:
         event = parse_codex_events({"type": "item.completed", "item": item})[-1]
         assert event.tool_call.kind is expected_kind
+        assert event.tool_call.phase is ToolCallPhase.COMPLETED
 
 
 def test_bridge_capabilities_expose_specific_stream_features():

@@ -8,9 +8,13 @@ from py_agent_ctrl.api.models import (
     AgentType,
     TokenUsage,
     ToolCall,
+    ToolCallPhase,
+    ToolCallStatus,
+    infer_tool_call_phase,
     infer_tool_kind,
     normalize_tool_call_status,
 )
+from py_agent_ctrl.services.core.tool_calls import ToolCallLifecycleTracker
 
 
 def parse_gemini_events(raw: dict[str, Any]) -> list[AgentEvent]:
@@ -37,10 +41,10 @@ def gemini_response_from_output(
     parse_failure_samples: list[str],
 ) -> AgentResponse:
     text_parts: list[str] = []
-    tool_calls: list[ToolCall] = []
     session_id: str | None = None
     usage: TokenUsage | None = None
     pending_tools: dict[str, dict[str, Any]] = {}
+    tool_call_tracker = ToolCallLifecycleTracker()
 
     for event in events:
         if isinstance(event, AgentTextEvent):
@@ -58,13 +62,26 @@ def gemini_response_from_output(
         elif isinstance(event, AgentUnknownEvent):
             pending_tool = event.raw.get("pending_tool")
             if isinstance(pending_tool, dict):
-                pending_tools[str(pending_tool.get("tool_id", ""))] = pending_tool
+                tool_id = str(pending_tool.get("tool_id", ""))
+                pending_tools[tool_id] = pending_tool
+                tool_call_tracker.apply_tool_call(
+                    ToolCall(
+                        id=tool_id,
+                        name=str(pending_tool.get("tool_name", "")),
+                        kind=infer_tool_kind(str(pending_tool.get("tool_name", "")), event_type="tool_use"),
+                        arguments=dict(pending_tool.get("parameters", {})),
+                        status=ToolCallStatus.PENDING,
+                        phase=ToolCallPhase.STARTED,
+                        raw=pending_tool,
+                    )
+                )
             tool_result = event.raw.get("tool_result")
             if isinstance(tool_result, dict):
                 tool_id = str(tool_result.get("tool_id", ""))
                 tool_use = pending_tools.get(tool_id, {})
                 is_error = str(tool_result.get("status", "")) == "error"
-                tool_calls.append(
+                status = normalize_tool_call_status(tool_result.get("status"), is_error=is_error)
+                tool_call_tracker.apply_tool_call(
                     ToolCall(
                         id=tool_id,
                         name=str(tool_use.get("tool_name", "")),
@@ -72,7 +89,8 @@ def gemini_response_from_output(
                         arguments=dict(tool_use.get("parameters", {})),
                         output=tool_result.get("output") or tool_result.get("error"),
                         is_error=is_error,
-                        status=normalize_tool_call_status(tool_result.get("status"), is_error=is_error),
+                        status=status,
+                        phase=infer_tool_call_phase(status),
                         raw=tool_result,
                     )
                 )
@@ -83,7 +101,7 @@ def gemini_response_from_output(
         exit_code=exit_code,
         session_id=session_id,
         usage=usage,
-        tool_calls=tool_calls,
+        tool_calls=tool_call_tracker.snapshots(),
         raw_response=raw_events,
         parse_failures=parse_failures,
         parse_failure_samples=parse_failure_samples,

@@ -8,6 +8,7 @@ from py_agent_ctrl.api.models import (
     AgentType,
     TokenUsage,
     ToolCall,
+    infer_tool_call_phase,
     infer_tool_kind,
     normalize_tool_call_status,
 )
@@ -22,6 +23,8 @@ def parse_opencode_events(raw: dict[str, Any]) -> list[AgentEvent]:
         part = raw.get("part", {})
         state = part.get("state", {})
         is_error = str(state.get("status", "")) in {"error", "failed"}
+        status = normalize_tool_call_status(state.get("status"), is_error=is_error)
+        phase = infer_tool_call_phase(status)
         return [
             AgentToolCallEvent(
                 tool_call=ToolCall(
@@ -31,9 +34,11 @@ def parse_opencode_events(raw: dict[str, Any]) -> list[AgentEvent]:
                     arguments=dict(state.get("input", {})),
                     output=state.get("output"),
                     is_error=is_error,
-                    status=normalize_tool_call_status(state.get("status"), is_error=is_error),
+                    status=status,
+                    phase=phase,
                     raw=raw,
                 ),
+                phase=phase,
                 raw=raw,
             )
         ]

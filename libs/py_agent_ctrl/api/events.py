@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from py_agent_ctrl.api.models import TokenUsage, ToolCall
+from py_agent_ctrl.api.models import TokenUsage, ToolCall, ToolCallPhase
 
 
 class StreamDiagnostics(BaseModel):
@@ -30,6 +30,7 @@ class AgentTextEvent(BaseModel):
 class AgentToolCallEvent(BaseModel):
     type: Literal["tool_call"] = "tool_call"
     tool_call: ToolCall
+    phase: ToolCallPhase | None = None
     raw: dict[str, Any] | None = None
 
 

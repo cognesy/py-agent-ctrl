@@ -8,6 +8,7 @@ from py_agent_ctrl.api.models import (
     AgentType,
     TokenUsage,
     ToolCall,
+    infer_tool_call_phase,
     infer_tool_kind,
     normalize_tool_call_status,
 )
@@ -23,6 +24,8 @@ def parse_pi_events(raw: dict[str, Any]) -> list[AgentEvent]:
             return [AgentTextEvent(text=str(assistant_event.get("delta", "")), raw=raw)]
     if event_type == "tool_execution_end":
         is_error = bool(raw.get("isError", False))
+        status = normalize_tool_call_status("failed" if is_error else "completed", is_error=is_error)
+        phase = infer_tool_call_phase(status)
         return [
             AgentToolCallEvent(
                 tool_call=ToolCall(
@@ -32,9 +35,11 @@ def parse_pi_events(raw: dict[str, Any]) -> list[AgentEvent]:
                     arguments={},
                     output=raw.get("result"),
                     is_error=is_error,
-                    status=normalize_tool_call_status("failed" if is_error else "completed", is_error=is_error),
+                    status=status,
+                    phase=phase,
                     raw=raw,
                 ),
+                phase=phase,
                 raw=raw,
             )
         ]

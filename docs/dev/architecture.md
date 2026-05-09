@@ -186,6 +186,34 @@ Fixture tests under `tests/fixtures/<provider>/` and
 layer. New providers or parser changes should add replayable JSONL fixtures
 before changing bridge behavior.
 
+## Tool-call Lifecycle
+
+Tool-call lifecycle support is an internal normalization aid, not a separate
+wire protocol. `ToolCall.status` remains the normalized provider outcome, while
+`ToolCall.phase` and `AgentToolCallEvent.phase` describe whether the record is a
+start, update, terminal state, or honest provider snapshot.
+
+The lifecycle phases are:
+
+- `started`
+- `updated`
+- `completed`
+- `failed`
+- `cancelled`
+- `snapshot`
+
+The bridge should only claim the lifecycle granularity that the provider exposes.
+Claude Code can surface a pending start. Gemini aggregate reduction tracks
+`tool_use` and `tool_result` internally, while live streaming preserves the
+existing paired-result behavior. Codex, OpenCode, and Pi mostly expose final
+records, so their phases are inferred from status or left as `snapshot` when the
+status is provider-specific.
+
+Shared lifecycle merging lives in `services/core/tool_calls.py`. It exists to
+avoid provider reducers hand-rolling partial start/result merging. It does not
+make provider-native formats interchangeable, and it does not introduce support
+for any external protocol runtime.
+
 ## Internal Execution Pipeline
 
 Provider execution has a shared internal pipeline under

@@ -43,6 +43,7 @@ from py_agent_ctrl.api.models import (
     SessionOperation,
     TokenUsage,
     ToolCall,
+    ToolCallPhase,
     ToolCallStatus,
     ToolKind,
 )
@@ -102,6 +103,7 @@ __all__ = [
     "StreamResult",
     "TokenUsage",
     "ToolCall",
+    "ToolCallPhase",
     "ToolCallStatus",
     "ToolKind",
     "UnsupportedSessionOperationError",
