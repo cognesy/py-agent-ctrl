@@ -17,6 +17,7 @@ uv run python -m pytest -q -m "not live"
 uv run python -m pytest -m "not live" --cov=py_agent_ctrl --cov-report=term-missing
 uv run python -m compileall -q apps libs tests
 uv build --wheel
+uv export --format requirements.txt --extra dev --no-hashes --no-emit-project --locked | uvx pip-audit --no-deps --disable-pip -r /dev/stdin
 ```
 
 Use module invocation for Python tools (`uv run python -m ...`) instead of
@@ -109,3 +110,43 @@ Ruff currently enforces formatting plus a conservative lint baseline:
 `PTH` and `PL` rules are intentionally deferred because they can create broader
 style churn. Add them later only when the resulting changes are clearly worth
 the maintenance cost.
+
+## Minimal Security Audit
+
+Audit the locked runtime and dev dependency set from `uv.lock`:
+
+```bash
+uv export --format requirements.txt --extra dev --no-hashes --no-emit-project --locked | uvx pip-audit --no-deps --disable-pip -r /dev/stdin
+```
+
+The export is fully pinned, so `pip-audit` runs with `--no-deps` and
+`--disable-pip` instead of creating its own resolver environment. This avoids
+environment-specific `ensurepip` failures and keeps the audit tied to the
+checked-in `uv.lock`.
+
+The first hardening pass intentionally does not add Semgrep, Bandit, or
+gitleaks. Subprocess execution is expected behavior in this library, so broad
+static security scanners should be added only after a concrete finding or
+policy need justifies the extra noise.
+
+Dependency update automation is also not added in this pass because this is a
+plain git repository without an active CI/CD pipeline. Revisit Dependabot or
+Renovate when the repository has an active hosted workflow that will actually
+run the hardened quality lane on proposed updates.
+
+## Subprocess Boundary Review
+
+The core process boundary currently has the expected first-pass safeguards:
+
+- commands are built and executed as argv lists, with no shell invocation;
+- `cwd` is checked before blocking subprocess execution;
+- subprocess environments are copied per command and provider overrides are
+  applied explicitly;
+- Claude Code-specific inherited environment variables are removed before
+  launch to avoid stale configuration bleed-through;
+- blocking and streaming execution paths both have timeout behavior;
+- failure reporting stores a bounded stderr tail instead of unbounded output.
+
+Future reviews should keep focusing on argv construction, provider-specific
+environment sanitization, working-directory handling, timeout consistency, and
+whether any diagnostic output could expose secrets.
