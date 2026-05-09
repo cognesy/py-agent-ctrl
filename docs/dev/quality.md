@@ -61,12 +61,42 @@ confidence, but they are not required to satisfy the coverage floor.
 ## Live Integration Tests
 
 Tests marked `live` invoke real external agent CLIs. They are excluded from the
-normal local quality lane. Run them manually only when the relevant provider CLI
-is installed and authenticated:
+normal local quality lane. They are manual-only: do not add scheduled live-agent
+runs.
+
+Run one configured provider when its CLI is installed and authenticated:
 
 ```bash
 PY_AGENT_CTRL_RUN_LIVE_INTEGRATION=1 PY_AGENT_CTRL_LIVE_AGENTS=codex uv run python -m pytest -q tests/integration -m live
 ```
+
+Run all configured providers:
+
+```bash
+PY_AGENT_CTRL_RUN_LIVE_INTEGRATION=1 uv run python -m pytest -q tests/integration -m live
+```
+
+Provider names and CLI binaries:
+
+| Provider | `PY_AGENT_CTRL_LIVE_AGENTS` value | CLI binary |
+|----------|-----------------------------------|------------|
+| Claude Code | `claude-code` | `claude` |
+| Codex | `codex` | `codex` |
+| Gemini | `gemini` | `gemini` |
+| OpenCode | `opencode` | `opencode` |
+| Pi | `pi` | `pi` |
+
+Before running live tests, check local CLI availability and versions:
+
+```bash
+for cli in claude codex gemini opencode pi; do
+  command -v "$cli" >/dev/null && "$cli" --version || printf '%s not installed\n' "$cli"
+done
+```
+
+The integration helper skips tests with explicit messages when
+`PY_AGENT_CTRL_RUN_LIVE_INTEGRATION` is not set, a provider is not selected in
+`PY_AGENT_CTRL_LIVE_AGENTS`, or a required CLI binary is missing from `PATH`.
 
 ## Ruff Scope
 
