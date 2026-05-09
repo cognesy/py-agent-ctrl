@@ -1,5 +1,5 @@
 from py_agent_ctrl.api.events import AgentResultEvent, AgentTextEvent, AgentToolCallEvent
-from py_agent_ctrl.api.models import AgentRequest
+from py_agent_ctrl.api.models import AgentRequest, ToolCallStatus, ToolKind
 from py_agent_ctrl.services.bridges.claude_code.command_builder import build_claude_command
 from py_agent_ctrl.services.bridges.claude_code.parser import events_to_response, parse_claude_event
 
@@ -62,6 +62,8 @@ def test_parse_claude_events_to_normalized_response():
     assert response.text == "pong"
     assert response.session_id == "sess-1"
     assert response.tool_calls[0].name == "Read"
+    assert response.tool_calls[0].kind is ToolKind.READ
+    assert response.tool_calls[0].status is ToolCallStatus.PENDING
 
 
 def test_events_to_response_extracts_usage_from_result_event():

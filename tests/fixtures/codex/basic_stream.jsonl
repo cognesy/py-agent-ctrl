@@ -1,0 +1,5 @@
+{"type":"thread.started","thread_id":"thread_stream"}
+{"type":"item.completed","item":{"id":"msg_1","type":"agent_message","status":"completed","text":"Hello from codex"}}
+{"type":"item.completed","item":{"id":"cmd_fail","type":"command_execution","status":"completed","command":"false","output":"boom","exit_code":1}}
+{"type":"item.completed","item":{"id":"search_1","type":"web_search","status":"completed","query":"py-agent-ctrl","results":[]}}
+{"type":"turn.completed","usage":{"input_tokens":9,"cached_input_tokens":3,"output_tokens":2}}

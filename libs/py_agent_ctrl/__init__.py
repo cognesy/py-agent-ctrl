@@ -17,6 +17,7 @@ from py_agent_ctrl.api.events import (
     AgentUnknownEvent,
     AgentUsageEvent,
     AgentWarningEvent,
+    StreamDiagnostics,
     StreamResult,
 )
 from py_agent_ctrl.api.facade import AgentCtrl
@@ -42,6 +43,8 @@ from py_agent_ctrl.api.models import (
     SessionOperation,
     TokenUsage,
     ToolCall,
+    ToolCallStatus,
+    ToolKind,
 )
 from py_agent_ctrl.services.core.errors import (
     AgentError,
@@ -95,9 +98,12 @@ __all__ = [
     "SessionCapabilities",
     "SessionInfo",
     "SessionOperation",
+    "StreamDiagnostics",
     "StreamResult",
     "TokenUsage",
     "ToolCall",
+    "ToolCallStatus",
+    "ToolKind",
     "UnsupportedSessionOperationError",
     "WorkingDirectoryNotFoundError",
 ]

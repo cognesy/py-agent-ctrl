@@ -8,6 +8,19 @@ from pydantic import BaseModel, Field
 from py_agent_ctrl.api.models import TokenUsage, ToolCall
 
 
+class StreamDiagnostics(BaseModel):
+    parse_failures: int = 0
+    skipped_non_json_lines: int = 0
+    overlong_lines: int = 0
+    parse_failure_samples: list[str] = Field(default_factory=list)
+    stderr_tail: str = ""
+    timed_out: bool = False
+    duration_ms: int | None = None
+    command_preview: list[str] = Field(default_factory=list)
+    cwd: str | None = None
+    error_type: str | None = None
+
+
 class AgentTextEvent(BaseModel):
     type: Literal["text"] = "text"
     text: str
@@ -85,9 +98,11 @@ class StreamResult:
         self,
         events: Iterator[AgentEvent],
         exit_code_getter: Callable[[], int],
+        diagnostics_getter: Callable[[], StreamDiagnostics] | None = None,
     ) -> None:
         self._events = events
         self._exit_code_getter = exit_code_getter
+        self._diagnostics_getter = diagnostics_getter or StreamDiagnostics
 
     def __iter__(self) -> Iterator[AgentEvent]:
         yield from self._events
@@ -95,3 +110,7 @@ class StreamResult:
     @property
     def exit_code(self) -> int:
         return self._exit_code_getter()
+
+    @property
+    def diagnostics(self) -> StreamDiagnostics:
+        return self._diagnostics_getter()

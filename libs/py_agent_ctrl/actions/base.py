@@ -206,7 +206,7 @@ class BaseAgentAction:
                 self._handle_error(error)
                 raise
 
-        return StreamResult(_events(), lambda: result.exit_code)
+        return StreamResult(_events(), lambda: result.exit_code, lambda: result.diagnostics)
 
 
 def _dedupe_text_delta(current: str, incoming: str) -> tuple[str, str]:

@@ -13,7 +13,14 @@ from py_agent_ctrl.api.events import (
     AgentUnknownEvent,
     AgentUsageEvent,
 )
-from py_agent_ctrl.api.models import AgentResponse, AgentType, TokenUsage, ToolCall
+from py_agent_ctrl.api.models import (
+    AgentResponse,
+    AgentType,
+    TokenUsage,
+    ToolCall,
+    infer_tool_kind,
+    normalize_tool_call_status,
+)
 
 
 def parse_codex_events(raw: dict[str, Any]) -> list[AgentEvent]:
@@ -29,30 +36,34 @@ def parse_codex_events(raw: dict[str, Any]) -> list[AgentEvent]:
         if item_type == "agent_message":
             return [AgentTextEvent(text=str(item.get("text", "")), raw=raw)]
         if item_type == "command_execution":
+            is_error = int(item.get("exit_code", 0) or 0) != 0
             return [
                 AgentToolCallEvent(
                     tool_call=ToolCall(
                         id=item_id,
                         name="bash",
+                        kind=infer_tool_kind("bash", event_type=item_type),
                         arguments={"command": item.get("command", "")},
                         output=item.get("output"),
-                        is_error=int(item.get("exit_code", 0) or 0) != 0,
-                        status=item.get("status"),
+                        is_error=is_error,
+                        status=normalize_tool_call_status(item.get("status"), is_error=is_error),
                         raw=raw,
                     ),
                     raw=raw,
                 )
             ]
         if item_type == "mcp_tool_call":
+            is_error = str(item.get("status", "")) in {"error", "failed"}
             return [
                 AgentToolCallEvent(
                     tool_call=ToolCall(
                         id=item_id,
                         name=str(item.get("tool", "")),
+                        kind=infer_tool_kind(str(item.get("tool", "")), event_type=item_type),
                         arguments=dict(item.get("arguments", {})),
                         output=item.get("result"),
-                        is_error=str(item.get("status", "")) in {"error", "failed", "cancelled"},
-                        status=item.get("status"),
+                        is_error=is_error,
+                        status=normalize_tool_call_status(item.get("status"), is_error=is_error),
                         raw=raw,
                     ),
                     raw=raw,
@@ -64,9 +75,10 @@ def parse_codex_events(raw: dict[str, Any]) -> list[AgentEvent]:
                     tool_call=ToolCall(
                         id=item_id,
                         name="file_change",
+                        kind=infer_tool_kind("file_change", event_type=item_type),
                         arguments={"path": item.get("path", ""), "action": item.get("action", "")},
                         output=item.get("diff"),
-                        status=item.get("status"),
+                        status=normalize_tool_call_status(item.get("status")),
                         raw=raw,
                     ),
                     raw=raw,
@@ -78,9 +90,10 @@ def parse_codex_events(raw: dict[str, Any]) -> list[AgentEvent]:
                     tool_call=ToolCall(
                         id=item_id,
                         name="web_search",
+                        kind=infer_tool_kind("web_search", event_type=item_type),
                         arguments={"query": item.get("query", "")},
                         output=item.get("results"),
-                        status=item.get("status"),
+                        status=normalize_tool_call_status(item.get("status")),
                         raw=raw,
                     ),
                     raw=raw,
@@ -93,9 +106,10 @@ def parse_codex_events(raw: dict[str, Any]) -> list[AgentEvent]:
                     tool_call=ToolCall(
                         id=item_id,
                         name="plan_update",
+                        kind=infer_tool_kind("plan_update", event_type=item_type),
                         arguments={},
                         output=item.get("plan"),
-                        status=item.get("status"),
+                        status=normalize_tool_call_status(item.get("status")),
                         raw=raw,
                     ),
                     raw=raw,
@@ -109,9 +123,10 @@ def parse_codex_events(raw: dict[str, Any]) -> list[AgentEvent]:
                     tool_call=ToolCall(
                         id=item_id,
                         name="reasoning",
+                        kind=infer_tool_kind("reasoning", event_type=item_type),
                         arguments={},
                         output=item.get("text"),
-                        status=item.get("status"),
+                        status=normalize_tool_call_status(item.get("status")),
                         raw=raw,
                     ),
                     raw=raw,
@@ -122,9 +137,10 @@ def parse_codex_events(raw: dict[str, Any]) -> list[AgentEvent]:
                 tool_call=ToolCall(
                     id=item_id,
                     name=str(item_type or "unknown"),
+                    kind=infer_tool_kind(str(item_type or "unknown"), event_type=item_type),
                     arguments={},
                     output=item,
-                    status=item.get("status"),
+                    status=normalize_tool_call_status(item.get("status")),
                     raw=raw,
                 ),
                 raw=raw,

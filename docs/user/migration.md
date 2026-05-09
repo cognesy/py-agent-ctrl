@@ -72,6 +72,13 @@ After:
 AgentCtrl.claude_code().with_additional_dirs(["/shared/a", "/shared/b"])
 ```
 
+Directory paths are normalized before execution. `.in_directory(...)` must point
+to an existing directory and is passed to the provider process as the working
+directory. Additional directories are resolved to absolute paths; relative
+entries are resolved against `.in_directory(...)` when it is set, otherwise
+against the current Python process directory. Claude Code and Codex receive
+additional directories through their native `--add-dir` option.
+
 ## Package Layout
 
 Before:

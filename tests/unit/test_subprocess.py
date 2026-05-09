@@ -5,6 +5,7 @@ from py_agent_ctrl.services.core.subprocess import (
     CommandSpec,
     HostCommandExecutor,
     JsonLinesParser,
+    JsonParseDiagnostics,
     ProcessOutput,
     iter_json_lines,
     run_process,
@@ -154,6 +155,7 @@ def test_run_process_delegates_to_executor():
 
 def test_stream_process_delegates_to_executor_and_parses_json_lines():
     executor = FakeExecutor()
+    diagnostics = JsonParseDiagnostics()
 
     gen, get_exit_code = stream_process(
         ["agent", "stream"],
@@ -162,12 +164,16 @@ def test_stream_process_delegates_to_executor_and_parses_json_lines():
         timeout_seconds=5,
         stdin="prompt",
         executor=executor,
+        diagnostics=diagnostics,
     )
 
     assert list(gen) == [({"type": "ok"}, '{"type":"ok"}'), (None, "not-json")]
     assert get_exit_code() == 3
     assert executor.commands[0].argv == ["agent", "stream"]
     assert executor.commands[0].stdin == "prompt"
+    assert diagnostics.parse_failures == 1
+    assert diagnostics.skipped_non_json_lines == 1
+    assert diagnostics.parse_failure_samples == ["not-json"]
 
 
 def test_json_lines_parser_buffers_chunked_lines():

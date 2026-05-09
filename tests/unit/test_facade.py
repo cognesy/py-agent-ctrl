@@ -14,6 +14,12 @@ def test_placeholder_capabilities_exist_for_future_bridges():
 
     assert capabilities.agent_type == AgentType.CODEX
     assert capabilities.cli_name == "codex"
+    assert capabilities.supports_tool_events is True
+    assert capabilities.supports_usage is True
+    assert capabilities.supports_reasoning is True
+    assert capabilities.supports_plan_events is True
+    assert capabilities.supports_file_change_events is True
+    assert capabilities.supports_structured_json_output is True
 
 
 def test_make_selects_builder_by_agent_type():

@@ -42,7 +42,7 @@ agents only.
 5. `uv` only
    Use `uv` for dependency management, execution, linting, and tests.
 6. Apps are thin
-   Any code under `apps/` should parse args, call one adapter/action, and format
+   Any code under `apps/` should parse args, call one facade/action, and format
    output. No agent logic belongs there.
 7. Resources stay passive
    Skills, example prompts, sample event payloads, and migration assets live
@@ -158,7 +158,7 @@ three-layer architecture:
 
 1. direct bridge
    Provider-specific CLI integration in the services layer
-2. normalized adapter behavior
+2. normalized facade behavior
    Action-layer mapping into the common API
 
 The implementation contract is therefore:
@@ -184,7 +184,7 @@ py-agent-ctrl/
 │       │   ├── models.py           # Pydantic common request/response models
 │       │   ├── events.py           # Pydantic normalized event models
 │       │   ├── ids.py              # Execution/session/tool-call IDs
-│       │   ├── contracts.py        # Bridge / adapter protocols
+│       │   ├── contracts.py        # Bridge protocols
 │       │   ├── capabilities.py     # Common capability model
 │       │   └── facade.py           # AgentCtrl facade
 │       │
@@ -249,7 +249,7 @@ The normalized API should use Pydantic models for:
 - `TokenUsage`
 - `BridgeCapabilities`
 
-Provider-specific adapters may expose extra fluent methods, but they should all
+Provider-specific facades may expose extra fluent methods, but they should all
 terminate in the same normalized response shape.
 
 ## Migration Strategy
@@ -348,11 +348,11 @@ Catch up with PHP support for:
 ### Phase 2. Introduce Common Pydantic API Models
 
 - define normalized request, response, event, usage, and tool-call models
-- define bridge and adapter contracts
+- define bridge and facade/action contracts
 - add execution ID distinct from provider session ID
 - define common error types and parse diagnostics
 
-### Phase 3. Extract Claude Code Into Bridge + Adapter
+### Phase 3. Extract Claude Code Into Bridge + Facade
 
 - move Claude-specific command building and parsing into
   `services/bridges/claude_code/`
@@ -387,7 +387,7 @@ the architecture ready for all five agents from the start.
 ### Phase 6. Expand Tests
 
 - `tests/unit/`
-  Pydantic models, command builders, parsers, adapters
+  Pydantic models, command builders, parsers, facade/action contracts
 - `tests/integration/`
   subprocess execution against real or stubbed CLIs
 - `tests/feature/`
@@ -409,12 +409,13 @@ commands in this repo.
 ## Migration Guidance Summary
 
 When downstream code only needs a coding agent result, it should prefer the
-common adapter API. When it needs provider-only controls, it should still use
-the provider adapter, but receive the same normalized response models.
+common facade/action API. When it needs provider-only controls, it should still
+use the provider-specific facade methods, but receive the same normalized
+response models.
 
 That gives this repo the right split:
 
 - direct bridge = stable place for raw CLI behavior
-- common adapter = stable place for client-facing portability
+- common facade/action API = stable place for client-facing portability
 
 This is the architecture to implement.

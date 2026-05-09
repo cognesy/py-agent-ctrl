@@ -39,6 +39,68 @@ class PermissionOutcome(StrEnum):
     CANCELLED = "cancelled"
 
 
+class ToolCallStatus(StrEnum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ToolKind(StrEnum):
+    READ = "read"
+    EDIT = "edit"
+    DELETE = "delete"
+    MOVE = "move"
+    SEARCH = "search"
+    EXECUTE = "execute"
+    THINK = "think"
+    FETCH = "fetch"
+    OTHER = "other"
+
+
+def normalize_tool_call_status(status: Any, *, is_error: bool = False) -> ToolCallStatus | None:
+    if is_error:
+        return ToolCallStatus.FAILED
+    if status is None:
+        return None
+    normalized = str(status).strip().lower().replace("-", "_")
+    if normalized in {"queued", "created"}:
+        return ToolCallStatus.PENDING
+    if normalized in {"running", "started", "inprogress", "in_progress"}:
+        return ToolCallStatus.IN_PROGRESS
+    if normalized in {"complete", "completed", "success", "succeeded", "ok"}:
+        return ToolCallStatus.COMPLETED
+    if normalized in {"error", "errored", "failed", "failure"}:
+        return ToolCallStatus.FAILED
+    if normalized in {"cancelled", "canceled"}:
+        return ToolCallStatus.CANCELLED
+    return None
+
+
+def infer_tool_kind(name: str | None = None, *, event_type: str | None = None) -> ToolKind:
+    normalized_name = (name or "").strip().lower().replace("-", "_")
+    normalized_event = (event_type or "").strip().lower().replace("-", "_")
+    candidates = {normalized_name, normalized_event}
+    if candidates & {"read", "read_file", "open", "view"}:
+        return ToolKind.READ
+    if candidates & {"edit", "write", "write_file", "file_change", "patch", "apply_patch"}:
+        return ToolKind.EDIT
+    if candidates & {"delete", "remove", "rm"}:
+        return ToolKind.DELETE
+    if candidates & {"move", "rename", "mv"}:
+        return ToolKind.MOVE
+    if candidates & {"search", "grep", "ripgrep", "rg", "web_search"}:
+        return ToolKind.SEARCH
+    if candidates & {"bash", "shell", "command", "command_execution", "execute", "run"}:
+        return ToolKind.EXECUTE
+    if candidates & {"think", "reasoning", "plan_update"}:
+        return ToolKind.THINK
+    if candidates & {"fetch", "http", "request", "download"}:
+        return ToolKind.FETCH
+    return ToolKind.OTHER
+
+
 class SandboxDriver(StrEnum):
     HOST = "host"
     DOCKER = "docker"
@@ -81,10 +143,11 @@ class TokenUsage(BaseModel):
 class ToolCall(BaseModel):
     id: str | None = None
     name: str
+    kind: ToolKind = ToolKind.OTHER
     arguments: dict[str, Any] = Field(default_factory=dict)
     output: Any = None
     is_error: bool = False
-    status: str | None = None
+    status: ToolCallStatus | None = None
     raw: dict[str, Any] | None = None
 
 
@@ -95,6 +158,14 @@ class BridgeCapabilities(BaseModel):
     supports_session_resume: bool = True
     supports_continue: bool = True
     supports_permissions: bool = False
+    supports_tool_events: bool = False
+    supports_usage: bool = False
+    supports_reasoning: bool = False
+    supports_plan_events: bool = False
+    supports_file_change_events: bool = False
+    supports_permission_callbacks: bool = False
+    supports_cancellation: bool = False
+    supports_structured_json_output: bool = False
     supported_options: list[str] = Field(default_factory=list)
 
 

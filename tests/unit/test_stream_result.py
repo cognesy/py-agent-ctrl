@@ -1,4 +1,4 @@
-from py_agent_ctrl.api.events import AgentTextEvent, AgentUnknownEvent, StreamResult
+from py_agent_ctrl.api.events import AgentTextEvent, AgentUnknownEvent, StreamDiagnostics, StreamResult
 
 
 def _make_result(events, exit_code=0):
@@ -36,3 +36,28 @@ def test_second_iteration_yields_nothing():
     second = list(result)
     assert len(first) == 1
     assert second == []
+
+
+def test_default_diagnostics_are_empty():
+    result = _make_result([])
+    list(result)
+
+    assert result.diagnostics == StreamDiagnostics()
+
+
+def test_diagnostics_reflect_getter_after_exhaustion():
+    diagnostics = StreamDiagnostics(
+        parse_failures=1,
+        skipped_non_json_lines=1,
+        parse_failure_samples=["not-json"],
+        command_preview=["agent", "run"],
+        cwd="/tmp/work",
+    )
+    result = StreamResult(iter([AgentTextEvent(text="ok")]), lambda: 0, lambda: diagnostics)
+
+    assert [event.type for event in result] == ["text"]
+    assert result.diagnostics.parse_failures == 1
+    assert result.diagnostics.skipped_non_json_lines == 1
+    assert result.diagnostics.parse_failure_samples == ["not-json"]
+    assert result.diagnostics.command_preview == ["agent", "run"]
+    assert result.diagnostics.cwd == "/tmp/work"

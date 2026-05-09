@@ -262,15 +262,28 @@ def stream_command_json_lines(
     command: CommandSpec,
     *,
     executor: CommandExecutor = DEFAULT_COMMAND_EXECUTOR,
+    diagnostics: JsonParseDiagnostics | None = None,
 ) -> tuple[Iterator[tuple[dict[str, object] | None, str]], Callable[[], int]]:
     lines, get_exit_code = executor.stream_lines(command)
 
+    def _copy_diagnostics(parser: JsonLinesParser) -> None:
+        if diagnostics is None:
+            return
+        diagnostics.parse_failures = parser.diagnostics.parse_failures
+        diagnostics.skipped_non_json_lines = parser.diagnostics.skipped_non_json_lines
+        diagnostics.overlong_lines = parser.diagnostics.overlong_lines
+        diagnostics.parse_failure_samples = list(parser.diagnostics.parse_failure_samples)
+
     def _generate() -> Iterator[tuple[dict[str, object] | None, str]]:
         parser = JsonLinesParser()
-        for line in lines:
-            parsed = parser.parse_line(line)
-            if parsed is not None:
-                yield parsed.payload, parsed.raw_line
+        try:
+            for line in lines:
+                parsed = parser.parse_line(line)
+                _copy_diagnostics(parser)
+                if parsed is not None:
+                    yield parsed.payload, parsed.raw_line
+        finally:
+            _copy_diagnostics(parser)
 
     return _generate(), get_exit_code
 
@@ -283,6 +296,7 @@ def stream_process(
     timeout_seconds: int,
     stdin: str | None = None,
     executor: CommandExecutor = DEFAULT_COMMAND_EXECUTOR,
+    diagnostics: JsonParseDiagnostics | None = None,
 ) -> tuple[Iterator[tuple[dict[str, object] | None, str]], Callable[[], int]]:
     return stream_command_json_lines(
         CommandSpec(
@@ -293,6 +307,7 @@ def stream_process(
             stdin=stdin,
         ),
         executor=executor,
+        diagnostics=diagnostics,
     )
 
 

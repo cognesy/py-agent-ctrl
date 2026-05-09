@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"thread_mixed"}
+not-json
+["not","an","object"]
+{"type":"provider.new_event","payload":{"kept":true}}

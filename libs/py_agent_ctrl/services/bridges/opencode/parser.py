@@ -3,7 +3,14 @@ from __future__ import annotations
 from typing import Any
 
 from py_agent_ctrl.api.events import AgentEvent, AgentResultEvent, AgentTextEvent, AgentToolCallEvent, AgentUnknownEvent
-from py_agent_ctrl.api.models import AgentResponse, AgentType, TokenUsage, ToolCall
+from py_agent_ctrl.api.models import (
+    AgentResponse,
+    AgentType,
+    TokenUsage,
+    ToolCall,
+    infer_tool_kind,
+    normalize_tool_call_status,
+)
 
 
 def parse_opencode_events(raw: dict[str, Any]) -> list[AgentEvent]:
@@ -14,15 +21,17 @@ def parse_opencode_events(raw: dict[str, Any]) -> list[AgentEvent]:
     if event_type == "tool_use":
         part = raw.get("part", {})
         state = part.get("state", {})
+        is_error = str(state.get("status", "")) in {"error", "failed"}
         return [
             AgentToolCallEvent(
                 tool_call=ToolCall(
                     id=part.get("callID"),
                     name=str(part.get("tool", "")),
+                    kind=infer_tool_kind(str(part.get("tool", "")), event_type=event_type),
                     arguments=dict(state.get("input", {})),
                     output=state.get("output"),
-                    is_error=str(state.get("status", "")) in {"error", "failed"},
-                    status=state.get("status"),
+                    is_error=is_error,
+                    status=normalize_tool_call_status(state.get("status"), is_error=is_error),
                     raw=raw,
                 ),
                 raw=raw,

@@ -1,8 +1,14 @@
+from pathlib import Path
+
+import pytest
 from py_agent_ctrl.api.models import AgentRequest
+from py_agent_ctrl.services.bridges.codex.bridge import CodexBridge
 from py_agent_ctrl.services.bridges.codex.command_builder import build_codex_command
 from py_agent_ctrl.services.bridges.gemini.command_builder import build_gemini_command
 from py_agent_ctrl.services.bridges.opencode.command_builder import build_opencode_command
 from py_agent_ctrl.services.bridges.pi.command_builder import build_pi_command
+from py_agent_ctrl.services.core.errors import WorkingDirectoryNotFoundError
+from py_agent_ctrl.services.core.paths import normalize_request_paths
 
 
 def _patch(monkeypatch, module, binary):
@@ -33,6 +39,37 @@ def test_codex_resume_uses_session_id(monkeypatch):
     assert argv[2] == "resume"
     assert argv[3] == "sid-1"
     assert "go" in argv
+
+
+def test_codex_builder_receives_normalized_paths(monkeypatch, tmp_path):
+    _patch(monkeypatch, "py_agent_ctrl.services.bridges.codex.command_builder", "codex")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    request = normalize_request_paths(
+        AgentRequest(
+            prompt="go",
+            working_directory="repo",
+            additional_directories=["extra", str(tmp_path / "shared")],
+        )
+    )
+    argv = build_codex_command(request)
+
+    assert request.working_directory == str(repo.resolve())
+    assert request.additional_directories == [
+        str((repo / "extra").resolve(strict=False)),
+        str((tmp_path / "shared").resolve(strict=False)),
+    ]
+    assert argv[argv.index("--cd") + 1] == str(repo.resolve())
+    assert argv[argv.index("--add-dir") + 1] == str((repo / "extra").resolve(strict=False))
+
+
+def test_missing_working_directory_is_rejected_before_binary_lookup(tmp_path):
+    with pytest.raises(WorkingDirectoryNotFoundError) as exc_info:
+        CodexBridge().execute(AgentRequest(prompt="go", working_directory=str(tmp_path / "missing")))
+
+    assert Path(exc_info.value.cwd) == (tmp_path / "missing").resolve(strict=False)
 
 
 # ── Gemini ─────────────────────────────────────────────────────────────────

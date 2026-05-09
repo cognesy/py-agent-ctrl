@@ -8,6 +8,15 @@ This repo exposes:
 - a unified `ctrlagent` CLI
 - direct CLI bridges for `claude`, `codex`, `opencode`, `pi`, and `gemini`
 
+## Scope and Non-goals
+
+`py-agent-ctrl` is a Python-first control facade for existing CLI coding agents.
+It does not implement Agent Client Protocol (ACP), expose an ACP agent/client
+runtime, replace the provider CLIs, or try to be a general-purpose agent
+framework. ACP remains useful as a design reference for structured events,
+capabilities, permissions, cancellation, and hardening, but the runtime contract
+here is direct CLI execution through installed provider tools.
+
 The codebase follows the clean layout described in [docs/dev/architecture.md](docs/dev/architecture.md):
 
 - `apps/` for runnable shells

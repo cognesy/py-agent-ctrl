@@ -3,7 +3,14 @@ from __future__ import annotations
 from typing import Any
 
 from py_agent_ctrl.api.events import AgentEvent, AgentResultEvent, AgentTextEvent, AgentUnknownEvent
-from py_agent_ctrl.api.models import AgentResponse, AgentType, TokenUsage, ToolCall
+from py_agent_ctrl.api.models import (
+    AgentResponse,
+    AgentType,
+    TokenUsage,
+    ToolCall,
+    infer_tool_kind,
+    normalize_tool_call_status,
+)
 
 
 def parse_gemini_events(raw: dict[str, Any]) -> list[AgentEvent]:
@@ -56,13 +63,16 @@ def gemini_response_from_output(
             if isinstance(tool_result, dict):
                 tool_id = str(tool_result.get("tool_id", ""))
                 tool_use = pending_tools.get(tool_id, {})
+                is_error = str(tool_result.get("status", "")) == "error"
                 tool_calls.append(
                     ToolCall(
                         id=tool_id,
                         name=str(tool_use.get("tool_name", "")),
+                        kind=infer_tool_kind(str(tool_use.get("tool_name", "")), event_type="tool_result"),
                         arguments=dict(tool_use.get("parameters", {})),
                         output=tool_result.get("output") or tool_result.get("error"),
-                        is_error=str(tool_result.get("status", "")) == "error",
+                        is_error=is_error,
+                        status=normalize_tool_call_status(tool_result.get("status"), is_error=is_error),
                         raw=tool_result,
                     )
                 )

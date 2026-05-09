@@ -2,12 +2,19 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from py_agent_ctrl.api.events import AgentEvent, StreamResult
+from py_agent_ctrl.api.events import AgentEvent, StreamDiagnostics, StreamResult
 from py_agent_ctrl.api.models import AgentRequest, AgentResponse, AgentType, BridgeCapabilities
 from py_agent_ctrl.services.bridges.pi.command_builder import build_pi_command
 from py_agent_ctrl.services.bridges.pi.parser import parse_pi_events, pi_response_from_output
 from py_agent_ctrl.services.core.env import agent_env
-from py_agent_ctrl.services.core.subprocess import CommandSpec, iter_json_lines, run_command, stream_command_json_lines
+from py_agent_ctrl.services.core.paths import normalize_request_paths
+from py_agent_ctrl.services.core.subprocess import (
+    CommandSpec,
+    JsonParseDiagnostics,
+    iter_json_lines,
+    run_command,
+    stream_command_json_lines,
+)
 
 
 class PiBridge:
@@ -15,6 +22,14 @@ class PiBridge:
         return BridgeCapabilities(
             agent_type=AgentType.PI,
             cli_name="pi",
+            supports_tool_events=True,
+            supports_usage=True,
+            supports_reasoning=False,
+            supports_plan_events=False,
+            supports_file_change_events=False,
+            supports_permission_callbacks=False,
+            supports_cancellation=False,
+            supports_structured_json_output=True,
             supported_options=[
                 "model",
                 "provider",
@@ -28,6 +43,7 @@ class PiBridge:
         )
 
     def execute(self, request: AgentRequest) -> AgentResponse:
+        request = normalize_request_paths(request)
         command = CommandSpec(
             argv=build_pi_command(request),
             cwd=request.working_directory,
@@ -56,14 +72,15 @@ class PiBridge:
         )
 
     def stream(self, request: AgentRequest) -> StreamResult:
-        gen, get_exit_code = stream_command_json_lines(
-            CommandSpec(
-                argv=build_pi_command(request),
-                cwd=request.working_directory,
-                env=agent_env(AgentType.PI, request.provider_options),
-                timeout_seconds=request.timeout_seconds,
-            ),
+        request = normalize_request_paths(request)
+        command = CommandSpec(
+            argv=build_pi_command(request),
+            cwd=request.working_directory,
+            env=agent_env(AgentType.PI, request.provider_options),
+            timeout_seconds=request.timeout_seconds,
         )
+        json_diagnostics = JsonParseDiagnostics()
+        gen, get_exit_code = stream_command_json_lines(command, diagnostics=json_diagnostics)
 
         def _events() -> Iterator[AgentEvent]:
             for payload, _raw_line in gen:
@@ -71,4 +88,15 @@ class PiBridge:
                     continue
                 yield from parse_pi_events(payload)
 
-        return StreamResult(_events(), get_exit_code)
+        return StreamResult(
+            _events(),
+            get_exit_code,
+            lambda: StreamDiagnostics(
+                parse_failures=json_diagnostics.parse_failures,
+                skipped_non_json_lines=json_diagnostics.skipped_non_json_lines,
+                overlong_lines=json_diagnostics.overlong_lines,
+                parse_failure_samples=list(json_diagnostics.parse_failure_samples),
+                command_preview=command.argv[:5],
+                cwd=command.cwd,
+            ),
+        )

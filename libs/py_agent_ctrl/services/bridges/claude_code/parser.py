@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from py_agent_ctrl.api.events import AgentEvent, AgentResultEvent, AgentTextEvent, AgentToolCallEvent, AgentUnknownEvent
-from py_agent_ctrl.api.models import AgentResponse, AgentType, TokenUsage, ToolCall
+from py_agent_ctrl.api.models import AgentResponse, AgentType, TokenUsage, ToolCall, ToolCallStatus, infer_tool_kind
 from py_agent_ctrl.services.bridges.claude_code.models import (
     ClaudeAssistantEvent,
     ClaudeResultEvent,
@@ -36,7 +36,9 @@ def parse_claude_events(raw: dict[str, Any]) -> list[AgentEvent]:
                         tool_call=ToolCall(
                             id=item.id,
                             name=item.name,
+                            kind=infer_tool_kind(item.name),
                             arguments=item.input,
+                            status=ToolCallStatus.PENDING,
                             raw=raw,
                         ),
                         raw=raw,

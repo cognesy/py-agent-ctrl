@@ -1,11 +1,14 @@
 from py_agent_ctrl.api.events import AgentPlanUpdateEvent, AgentReasoningEvent, AgentUsageEvent
-from py_agent_ctrl.api.models import AgentRequest
+from py_agent_ctrl.api.models import AgentRequest, ToolCallStatus, ToolKind
 from py_agent_ctrl.services.bridges.codex.command_builder import build_codex_command
 from py_agent_ctrl.services.bridges.codex.parser import codex_response_from_output, parse_codex_events
+from py_agent_ctrl.services.bridges.gemini.bridge import GeminiBridge
 from py_agent_ctrl.services.bridges.gemini.command_builder import build_gemini_command
 from py_agent_ctrl.services.bridges.gemini.parser import gemini_response_from_output, parse_gemini_events
+from py_agent_ctrl.services.bridges.opencode.bridge import OpenCodeBridge
 from py_agent_ctrl.services.bridges.opencode.command_builder import build_opencode_command
 from py_agent_ctrl.services.bridges.opencode.parser import opencode_response_from_output, parse_opencode_events
+from py_agent_ctrl.services.bridges.pi.bridge import PiBridge
 from py_agent_ctrl.services.bridges.pi.command_builder import build_pi_command
 from py_agent_ctrl.services.bridges.pi.parser import parse_pi_events, pi_response_from_output
 
@@ -70,10 +73,18 @@ def test_codex_builder_and_parser(monkeypatch):
     assert response.usage.input_tokens == 9
     assert response.usage.cache_read_tokens == 3
     assert response.tool_calls[0].name == "bash"
+    assert response.tool_calls[0].kind is ToolKind.EXECUTE
+    assert response.tool_calls[0].status is ToolCallStatus.COMPLETED
     assert reasoning_events[0].text == "I should inspect tests."
     assert plan_events[0].plan == [{"step": "Run tests"}]
     assert usage_events[0].usage.output_tokens == 2
     assert [tool.name for tool in response.tool_calls] == ["bash", "reasoning", "plan_update"]
+    assert [tool.kind for tool in response.tool_calls] == [ToolKind.EXECUTE, ToolKind.THINK, ToolKind.THINK]
+    assert [tool.status for tool in response.tool_calls] == [
+        ToolCallStatus.COMPLETED,
+        ToolCallStatus.COMPLETED,
+        ToolCallStatus.COMPLETED,
+    ]
 
 
 def test_opencode_builder_and_parser(monkeypatch):
@@ -141,6 +152,8 @@ def test_opencode_builder_and_parser(monkeypatch):
     assert response.cost_usd == 0.42
     assert response.usage.reasoning_tokens == 1
     assert response.tool_calls[0].name == "bash"
+    assert response.tool_calls[0].kind is ToolKind.EXECUTE
+    assert response.tool_calls[0].status is ToolCallStatus.COMPLETED
 
 
 def test_pi_builder_and_parser(monkeypatch):
@@ -197,6 +210,8 @@ def test_pi_builder_and_parser(monkeypatch):
     assert response.cost_usd == 0.12
     assert response.usage.total_tokens == 10
     assert response.tool_calls[0].name == "bash"
+    assert response.tool_calls[0].kind is ToolKind.EXECUTE
+    assert response.tool_calls[0].status is ToolCallStatus.COMPLETED
 
 
 def test_gemini_builder_and_parser(monkeypatch):
@@ -237,3 +252,103 @@ def test_gemini_builder_and_parser(monkeypatch):
     assert response.text == "Hello"
     assert response.usage.cache_read_tokens == 5
     assert response.tool_calls[0].name == "read_file"
+    assert response.tool_calls[0].kind is ToolKind.READ
+    assert response.tool_calls[0].status is ToolCallStatus.COMPLETED
+
+
+def test_provider_tool_status_normalization():
+    codex_failed = parse_codex_events(
+        {
+            "type": "item.completed",
+            "item": {
+                "id": "cmd_fail",
+                "type": "command_execution",
+                "status": "completed",
+                "command": "false",
+                "output": "boom",
+                "exit_code": 1,
+            },
+        }
+    )[0]
+    assert codex_failed.tool_call.status is ToolCallStatus.FAILED
+    assert codex_failed.tool_call.kind is ToolKind.EXECUTE
+    assert codex_failed.tool_call.raw["item"]["status"] == "completed"
+
+    codex_cancelled = parse_codex_events(
+        {
+            "type": "item.completed",
+            "item": {
+                "id": "mcp_cancel",
+                "type": "mcp_tool_call",
+                "tool": "lookup",
+                "arguments": {},
+                "result": None,
+                "status": "cancelled",
+            },
+        }
+    )[0]
+    assert codex_cancelled.tool_call.status is ToolCallStatus.CANCELLED
+    assert codex_cancelled.tool_call.kind is ToolKind.OTHER
+    assert codex_cancelled.tool_call.raw["item"]["status"] == "cancelled"
+
+    opencode_unknown = parse_opencode_events(
+        {
+            "type": "tool_use",
+            "part": {
+                "callID": "call_unknown",
+                "tool": "custom",
+                "state": {"status": "provider-specific", "input": {}, "output": None},
+            },
+        }
+    )[0]
+    assert opencode_unknown.tool_call.status is None
+    assert opencode_unknown.tool_call.kind is ToolKind.OTHER
+    assert opencode_unknown.tool_call.raw["part"]["state"]["status"] == "provider-specific"
+
+
+def test_codex_tool_kind_classification_for_known_item_types():
+    samples = [
+        (
+            {
+                "id": "file_1",
+                "type": "file_change",
+                "status": "completed",
+                "path": "README.md",
+                "action": "edit",
+                "diff": "---",
+            },
+            ToolKind.EDIT,
+        ),
+        (
+            {
+                "id": "search_1",
+                "type": "web_search",
+                "status": "completed",
+                "query": "py-agent-ctrl",
+                "results": [],
+            },
+            ToolKind.SEARCH,
+        ),
+        (
+            {
+                "id": "reason_1",
+                "type": "reasoning",
+                "status": "completed",
+                "text": "thinking",
+            },
+            ToolKind.THINK,
+        ),
+    ]
+    for item, expected_kind in samples:
+        event = parse_codex_events({"type": "item.completed", "item": item})[-1]
+        assert event.tool_call.kind is expected_kind
+
+
+def test_bridge_capabilities_expose_specific_stream_features():
+    for bridge in (OpenCodeBridge(), PiBridge(), GeminiBridge()):
+        capabilities = bridge.capabilities()
+
+        assert capabilities.supports_tool_events is True
+        assert capabilities.supports_usage is True
+        assert capabilities.supports_structured_json_output is True
+        assert capabilities.supports_permission_callbacks is False

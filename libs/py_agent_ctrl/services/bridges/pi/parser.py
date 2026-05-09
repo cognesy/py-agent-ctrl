@@ -3,7 +3,14 @@ from __future__ import annotations
 from typing import Any
 
 from py_agent_ctrl.api.events import AgentEvent, AgentResultEvent, AgentTextEvent, AgentToolCallEvent, AgentUnknownEvent
-from py_agent_ctrl.api.models import AgentResponse, AgentType, TokenUsage, ToolCall
+from py_agent_ctrl.api.models import (
+    AgentResponse,
+    AgentType,
+    TokenUsage,
+    ToolCall,
+    infer_tool_kind,
+    normalize_tool_call_status,
+)
 
 
 def parse_pi_events(raw: dict[str, Any]) -> list[AgentEvent]:
@@ -15,14 +22,17 @@ def parse_pi_events(raw: dict[str, Any]) -> list[AgentEvent]:
         if assistant_event.get("type") == "text_delta":
             return [AgentTextEvent(text=str(assistant_event.get("delta", "")), raw=raw)]
     if event_type == "tool_execution_end":
+        is_error = bool(raw.get("isError", False))
         return [
             AgentToolCallEvent(
                 tool_call=ToolCall(
                     id=raw.get("toolCallId"),
                     name=str(raw.get("toolName", "")),
+                    kind=infer_tool_kind(str(raw.get("toolName", "")), event_type=event_type),
                     arguments={},
                     output=raw.get("result"),
-                    is_error=bool(raw.get("isError", False)),
+                    is_error=is_error,
+                    status=normalize_tool_call_status("failed" if is_error else "completed", is_error=is_error),
                     raw=raw,
                 ),
                 raw=raw,
