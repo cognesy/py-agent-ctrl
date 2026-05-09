@@ -19,6 +19,7 @@ def test_run_process_returns_process_output_on_success(tmp_path):
     script.chmod(0o755)
 
     import os
+
     output = run_process([str(script)], cwd=None, env=dict(os.environ), timeout_seconds=10)
 
     assert output.exit_code == 0
@@ -35,6 +36,7 @@ def test_run_process_catches_timeout_and_returns_error_output(monkeypatch):
     monkeypatch.setattr("py_agent_ctrl.services.core.subprocess.subprocess.run", _raise_timeout)
 
     import os
+
     output = run_process(["sleep", "99"], cwd=None, env=dict(os.environ), timeout_seconds=1)
 
     assert output.exit_code == -1

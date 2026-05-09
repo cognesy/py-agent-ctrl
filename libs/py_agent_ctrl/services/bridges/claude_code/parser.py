@@ -24,20 +24,24 @@ def parse_claude_events(raw: dict[str, Any]) -> list[AgentEvent]:
     if event_type == "assistant":
         assistant_event = ClaudeAssistantEvent.model_validate(raw)
         events: list[AgentEvent] = []
-        texts = [item.text for item in assistant_event.message.content if isinstance(item, ClaudeTextContent) and item.text]
+        texts = [
+            item.text for item in assistant_event.message.content if isinstance(item, ClaudeTextContent) and item.text
+        ]
         if texts:
             events.append(AgentTextEvent(text="".join(texts), raw=raw))
         for item in assistant_event.message.content:
             if isinstance(item, ClaudeToolUseContent):
-                events.append(AgentToolCallEvent(
-                    tool_call=ToolCall(
-                        id=item.id,
-                        name=item.name,
-                        arguments=item.input,
+                events.append(
+                    AgentToolCallEvent(
+                        tool_call=ToolCall(
+                            id=item.id,
+                            name=item.name,
+                            arguments=item.input,
+                            raw=raw,
+                        ),
                         raw=raw,
-                    ),
-                    raw=raw,
-                ))
+                    )
+                )
         return events or [AgentUnknownEvent(raw=raw)]
 
     if event_type == "tool_result":
@@ -46,12 +50,14 @@ def parse_claude_events(raw: dict[str, Any]) -> list[AgentEvent]:
 
     if event_type == "result":
         result_event = ClaudeResultEvent.model_validate(raw)
-        return [AgentResultEvent(
-            session_id=result_event.session_id or None,
-            cost_usd=result_event.cost_usd,
-            duration_ms=result_event.duration_ms,
-            raw=raw,
-        )]
+        return [
+            AgentResultEvent(
+                session_id=result_event.session_id or None,
+                cost_usd=result_event.cost_usd,
+                duration_ms=result_event.duration_ms,
+                raw=raw,
+            )
+        ]
 
     return [AgentUnknownEvent(raw=raw)]
 

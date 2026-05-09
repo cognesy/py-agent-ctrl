@@ -15,21 +15,32 @@ def parse_pi_events(raw: dict[str, Any]) -> list[AgentEvent]:
         if assistant_event.get("type") == "text_delta":
             return [AgentTextEvent(text=str(assistant_event.get("delta", "")), raw=raw)]
     if event_type == "tool_execution_end":
-        return [AgentToolCallEvent(tool_call=ToolCall(
-            id=raw.get("toolCallId"),
-            name=str(raw.get("toolName", "")),
-            arguments={},
-            output=raw.get("result"),
-            is_error=bool(raw.get("isError", False)),
-            raw=raw,
-        ), raw=raw)]
+        return [
+            AgentToolCallEvent(
+                tool_call=ToolCall(
+                    id=raw.get("toolCallId"),
+                    name=str(raw.get("toolName", "")),
+                    arguments={},
+                    output=raw.get("result"),
+                    is_error=bool(raw.get("isError", False)),
+                    raw=raw,
+                ),
+                raw=raw,
+            )
+        ]
     if event_type == "message_end":
         return [AgentResultEvent(raw=raw)]
     return [AgentUnknownEvent(raw=raw)]
 
 
-def pi_response_from_output(*, events: list[AgentEvent], raw_events: list[dict[str, Any]], exit_code: int,
-                            parse_failures: int, parse_failure_samples: list[str]) -> AgentResponse:
+def pi_response_from_output(
+    *,
+    events: list[AgentEvent],
+    raw_events: list[dict[str, Any]],
+    exit_code: int,
+    parse_failures: int,
+    parse_failure_samples: list[str],
+) -> AgentResponse:
     text_parts: list[str] = []
     final_assistant_text: str | None = None
     tool_calls: list[ToolCall] = []
@@ -69,9 +80,7 @@ def pi_response_from_output(*, events: list[AgentEvent], raw_events: list[dict[s
 
     text = "".join(text_parts)
     if final_assistant_text:
-        if not text:
-            text = final_assistant_text
-        elif final_assistant_text.startswith(text):
+        if not text or final_assistant_text.startswith(text):
             text = final_assistant_text
         elif text.endswith(final_assistant_text):
             pass

@@ -16,7 +16,17 @@ class GeminiBridge:
         return BridgeCapabilities(
             agent_type=AgentType.GEMINI,
             cli_name="gemini",
-            supported_options=["model", "approval_mode", "sandbox", "include_directories", "extensions", "allowed_tools", "allowed_mcp_servers", "policy_files", "debug"],
+            supported_options=[
+                "model",
+                "approval_mode",
+                "sandbox",
+                "include_directories",
+                "extensions",
+                "allowed_tools",
+                "allowed_mcp_servers",
+                "policy_files",
+                "debug",
+            ],
         )
 
     def execute(self, request: AgentRequest) -> AgentResponse:

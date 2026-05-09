@@ -15,7 +15,15 @@ class OpenCodeBridge:
         return BridgeCapabilities(
             agent_type=AgentType.OPENCODE,
             cli_name="opencode",
-            supported_options=["model", "agent", "files", "title", "share_session", "resume_session_id", "continue_session"],
+            supported_options=[
+                "model",
+                "agent",
+                "files",
+                "title",
+                "share_session",
+                "resume_session_id",
+                "continue_session",
+            ],
         )
 
     def execute(self, request: AgentRequest) -> AgentResponse:

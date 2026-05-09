@@ -22,6 +22,7 @@ Use `uv` only:
 
 ```bash
 uv sync --extra dev
+uv run python -m ruff format --check .
 uv run python -m ruff check .
 uv run python -m mypy libs/py_agent_ctrl
 uv run python -m pytest -q

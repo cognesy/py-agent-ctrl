@@ -20,6 +20,7 @@ from pydantic import ValidationError
 
 # --- type preservation ---
 
+
 def test_claude_builder_chain_returns_claude_code_action():
     action = AgentCtrl.claude_code().with_model("x").with_permission_mode("bypassPermissions")
     assert isinstance(action, ClaudeCodeAction)
@@ -47,6 +48,7 @@ def test_gemini_builder_chain_returns_gemini_action():
 
 # --- provider_options accumulation ---
 
+
 def test_claude_provider_options_accumulate():
     action = (
         AgentCtrl.claude_code()
@@ -59,12 +61,7 @@ def test_claude_provider_options_accumulate():
 
 
 def test_codex_provider_options_accumulate():
-    action = (
-        AgentCtrl.codex()
-        .with_sandbox(CodexSandboxMode.WORKSPACE_WRITE)
-        .full_auto()
-        .skip_git_repo_check()
-    )
+    action = AgentCtrl.codex().with_sandbox(CodexSandboxMode.WORKSPACE_WRITE).full_auto().skip_git_repo_check()
     opts = action._request.provider_options
     assert opts["sandbox"] == "workspace-write"
     assert opts["full_auto"] is True
@@ -73,10 +70,7 @@ def test_codex_provider_options_accumulate():
 
 def test_gemini_provider_options_accumulate():
     action = (
-        AgentCtrl.gemini()
-        .with_approval_mode(GeminiApprovalMode.PLAN)
-        .with_sandbox()
-        .with_allowed_tools(["read_file"])
+        AgentCtrl.gemini().with_approval_mode(GeminiApprovalMode.PLAN).with_sandbox().with_allowed_tools(["read_file"])
     )
     opts = action._request.provider_options
     assert opts["approval_mode"] == "plan"
@@ -85,6 +79,7 @@ def test_gemini_provider_options_accumulate():
 
 
 # --- base builder fields ---
+
 
 def test_with_model_sets_model():
     action = AgentCtrl.claude_code().with_model("claude-opus")

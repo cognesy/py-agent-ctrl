@@ -19,9 +19,7 @@ def test_acp_adapter_maps_text_event():
 
 
 def test_acp_adapter_maps_tool_call_event():
-    event = AgentToolCallEvent(
-        tool_call=ToolCall(id="tool-1", name="bash", arguments={"command": "pwd"}, output="ok")
-    )
+    event = AgentToolCallEvent(tool_call=ToolCall(id="tool-1", name="bash", arguments={"command": "pwd"}, output="ok"))
 
     assert event_to_acp_update(event) == {
         "session_update": "tool_call",

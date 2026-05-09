@@ -33,7 +33,7 @@ def test_claude_stream_yields_text_and_result_events(tmp_path, monkeypatch):
 def test_stream_exit_code_propagated_on_failure(tmp_path, monkeypatch):
     script = tmp_path / "claude"
     script.write_text(
-        "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"result\",\"subtype\":\"error\",\"session_id\":\"\",\"result\":\"\",\"is_error\":true}'\nexit 1\n",
+        '#!/bin/sh\nprintf \'%s\\n\' \'{"type":"result","subtype":"error","session_id":"","result":"","is_error":true}\'\nexit 1\n',
         encoding="utf-8",
     )
     script.chmod(0o755)

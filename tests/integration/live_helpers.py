@@ -9,7 +9,7 @@ import pytest
 LIVE_AGENT_ENV = "PY_AGENT_CTRL_RUN_LIVE_INTEGRATION"
 LIVE_AGENTS_ENV = "PY_AGENT_CTRL_LIVE_AGENTS"
 LIVE_TEST_PROMPT = (
-    'List directory names directly under ~/projects. '
+    "List directory names directly under ~/projects. "
     'Return only valid JSON in the exact shape {"directories":["name1","name2"]}. '
     "Do not include markdown fences or any explanatory text."
 )
@@ -19,11 +19,7 @@ def require_live_agent(agent_name: str, cli_name: str) -> None:
     if os.environ.get(LIVE_AGENT_ENV) != "1":
         pytest.skip(f"set {LIVE_AGENT_ENV}=1 to run live integration tests")
 
-    enabled_agents = {
-        item.strip()
-        for item in os.environ.get(LIVE_AGENTS_ENV, "").split(",")
-        if item.strip()
-    }
+    enabled_agents = {item.strip() for item in os.environ.get(LIVE_AGENTS_ENV, "").split(",") if item.strip()}
     if enabled_agents and agent_name not in enabled_agents:
         pytest.skip(f"{agent_name} not enabled in {LIVE_AGENTS_ENV}")
 

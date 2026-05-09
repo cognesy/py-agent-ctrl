@@ -90,7 +90,7 @@ def test_ctrlagent_stream_prints_text(monkeypatch, capsys, tmp_path):
 def test_ctrlagent_stream_returns_nonzero_exit_code(monkeypatch, tmp_path):
     script = tmp_path / "claude"
     script.write_text(
-        "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"result\",\"subtype\":\"error\",\"session_id\":\"\",\"result\":\"\",\"is_error\":true}'\nexit 2\n",
+        '#!/bin/sh\nprintf \'%s\\n\' \'{"type":"result","subtype":"error","session_id":"","result":"","is_error":true}\'\nexit 2\n',
         encoding="utf-8",
     )
     script.chmod(0o755)

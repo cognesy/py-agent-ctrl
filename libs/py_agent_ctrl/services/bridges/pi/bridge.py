@@ -15,7 +15,16 @@ class PiBridge:
         return BridgeCapabilities(
             agent_type=AgentType.PI,
             cli_name="pi",
-            supported_options=["model", "provider", "thinking", "tools", "files", "extensions", "skills", "session_dir"],
+            supported_options=[
+                "model",
+                "provider",
+                "thinking",
+                "tools",
+                "files",
+                "extensions",
+                "skills",
+                "session_dir",
+            ],
         )
 
     def execute(self, request: AgentRequest) -> AgentResponse:

@@ -13,15 +13,21 @@ def test_claude_counts_malformed_json_without_losing_valid_text(monkeypatch):
     )
     monkeypatch.setattr(
         "py_agent_ctrl.services.bridges.claude_code.bridge.run_command",
-        lambda *args, **kwargs: type("Output", (), {
-            "exit_code": 0,
-            "stdout": '\n'.join([
-                '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"pong"}]}}',
-                "not-json",
-                '{"type":"result","subtype":"success","session_id":"abc","result":"pong","is_error":false}',
-            ]),
-            "stderr": "",
-        })(),
+        lambda *args, **kwargs: type(
+            "Output",
+            (),
+            {
+                "exit_code": 0,
+                "stdout": "\n".join(
+                    [
+                        '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"pong"}]}}',
+                        "not-json",
+                        '{"type":"result","subtype":"success","session_id":"abc","result":"pong","is_error":false}',
+                    ]
+                ),
+                "stderr": "",
+            },
+        )(),
     )
 
     response = ClaudeCodeBridge().execute(AgentRequest(prompt="ignored"))
@@ -38,15 +44,21 @@ def test_codex_counts_malformed_json_without_losing_valid_thread(monkeypatch):
     )
     monkeypatch.setattr(
         "py_agent_ctrl.services.bridges.codex.bridge.run_command",
-        lambda *args, **kwargs: type("Output", (), {
-            "exit_code": 0,
-            "stdout": '\n'.join([
-                '{"type":"thread.started","thread_id":"thread_stream"}',
-                "not-json",
-                '{"type":"item.completed","item":{"id":"msg_1","type":"agent_message","status":"completed","text":"Hello from codex"}}',
-            ]),
-            "stderr": "",
-        })(),
+        lambda *args, **kwargs: type(
+            "Output",
+            (),
+            {
+                "exit_code": 0,
+                "stdout": "\n".join(
+                    [
+                        '{"type":"thread.started","thread_id":"thread_stream"}',
+                        "not-json",
+                        '{"type":"item.completed","item":{"id":"msg_1","type":"agent_message","status":"completed","text":"Hello from codex"}}',
+                    ]
+                ),
+                "stderr": "",
+            },
+        )(),
     )
 
     response = CodexBridge().execute(AgentRequest(prompt="ignored"))
@@ -63,11 +75,15 @@ def test_codex_accepts_plain_json_final_output(monkeypatch):
     )
     monkeypatch.setattr(
         "py_agent_ctrl.services.bridges.codex.bridge.run_command",
-        lambda *args, **kwargs: type("Output", (), {
-            "exit_code": 0,
-            "stdout": '{"directories":["py-agent-ctrl","xcron"]}',
-            "stderr": "",
-        })(),
+        lambda *args, **kwargs: type(
+            "Output",
+            (),
+            {
+                "exit_code": 0,
+                "stdout": '{"directories":["py-agent-ctrl","xcron"]}',
+                "stderr": "",
+            },
+        )(),
     )
 
     response = CodexBridge().execute(AgentRequest(prompt="ignored"))
@@ -83,16 +99,22 @@ def test_pi_ignores_user_echo_and_keeps_final_assistant_json(monkeypatch):
     )
     monkeypatch.setattr(
         "py_agent_ctrl.services.bridges.pi.bridge.run_command",
-        lambda *args, **kwargs: type("Output", (), {
-            "exit_code": 0,
-            "stdout": "\n".join([
-                '{"type":"session","version":3,"id":"pi-session"}',
-                '{"type":"message_end","message":{"role":"user","content":[{"type":"text","text":"prompt"}]}}',
-                '{"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"{\\"directories\\":[\\"py-agent-ctrl\\"]}"},"message":{}}',
-                '{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"{\\"directories\\":[\\"py-agent-ctrl\\"]}"}],"usage":{"input":1,"output":1,"totalTokens":2}}}',
-            ]),
-            "stderr": "",
-        })(),
+        lambda *args, **kwargs: type(
+            "Output",
+            (),
+            {
+                "exit_code": 0,
+                "stdout": "\n".join(
+                    [
+                        '{"type":"session","version":3,"id":"pi-session"}',
+                        '{"type":"message_end","message":{"role":"user","content":[{"type":"text","text":"prompt"}]}}',
+                        '{"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"{\\"directories\\":[\\"py-agent-ctrl\\"]}"},"message":{}}',
+                        '{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"{\\"directories\\":[\\"py-agent-ctrl\\"]}"}],"usage":{"input":1,"output":1,"totalTokens":2}}}',
+                    ]
+                ),
+                "stderr": "",
+            },
+        )(),
     )
 
     response = PiBridge().execute(AgentRequest(prompt="ignored"))
@@ -108,18 +130,24 @@ def test_gemini_extracts_text_and_tool_call_ignoring_malformed_json(monkeypatch)
     )
     monkeypatch.setattr(
         "py_agent_ctrl.services.bridges.gemini.bridge.run_command",
-        lambda *args, **kwargs: type("Output", (), {
-            "exit_code": 0,
-            "stdout": "\n".join([
-                '{"type":"init","session_id":"g1"}',
-                '{"type":"message","role":"assistant","content":"thinking","delta":true}',
-                "not-json",
-                '{"type":"tool_use","tool_name":"read_file","tool_id":"t1","parameters":{"path":"x"}}',
-                '{"type":"tool_result","tool_id":"t1","status":"success","output":"file-data"}',
-                '{"type":"result","status":"success"}',
-            ]),
-            "stderr": "",
-        })(),
+        lambda *args, **kwargs: type(
+            "Output",
+            (),
+            {
+                "exit_code": 0,
+                "stdout": "\n".join(
+                    [
+                        '{"type":"init","session_id":"g1"}',
+                        '{"type":"message","role":"assistant","content":"thinking","delta":true}',
+                        "not-json",
+                        '{"type":"tool_use","tool_name":"read_file","tool_id":"t1","parameters":{"path":"x"}}',
+                        '{"type":"tool_result","tool_id":"t1","status":"success","output":"file-data"}',
+                        '{"type":"result","status":"success"}',
+                    ]
+                ),
+                "stderr": "",
+            },
+        )(),
     )
 
     response = GeminiBridge().execute(AgentRequest(prompt="ignored"))
@@ -138,14 +166,20 @@ def test_opencode_extracts_text_and_usage_from_step_finish(monkeypatch):
     )
     monkeypatch.setattr(
         "py_agent_ctrl.services.bridges.opencode.bridge.run_command",
-        lambda *args, **kwargs: type("Output", (), {
-            "exit_code": 0,
-            "stdout": "\n".join([
-                '{"type":"text","sessionID":"oc1","part":{"text":"hello opencode"}}',
-                '{"type":"step_finish","sessionID":"oc1","part":{"cost":0.02,"tokens":{"input":10,"output":5,"reasoning":0,"cache":{"read":2,"write":1}}}}',
-            ]),
-            "stderr": "",
-        })(),
+        lambda *args, **kwargs: type(
+            "Output",
+            (),
+            {
+                "exit_code": 0,
+                "stdout": "\n".join(
+                    [
+                        '{"type":"text","sessionID":"oc1","part":{"text":"hello opencode"}}',
+                        '{"type":"step_finish","sessionID":"oc1","part":{"cost":0.02,"tokens":{"input":10,"output":5,"reasoning":0,"cache":{"read":2,"write":1}}}}',
+                    ]
+                ),
+                "stderr": "",
+            },
+        )(),
     )
 
     response = OpenCodeBridge().execute(AgentRequest(prompt="ignored"))

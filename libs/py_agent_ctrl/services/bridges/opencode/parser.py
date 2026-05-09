@@ -14,22 +14,37 @@ def parse_opencode_events(raw: dict[str, Any]) -> list[AgentEvent]:
     if event_type == "tool_use":
         part = raw.get("part", {})
         state = part.get("state", {})
-        return [AgentToolCallEvent(tool_call=ToolCall(
-            id=part.get("callID"),
-            name=str(part.get("tool", "")),
-            arguments=dict(state.get("input", {})),
-            output=state.get("output"),
-            is_error=str(state.get("status", "")) in {"error", "failed"},
-            status=state.get("status"),
-            raw=raw,
-        ), raw=raw)]
+        return [
+            AgentToolCallEvent(
+                tool_call=ToolCall(
+                    id=part.get("callID"),
+                    name=str(part.get("tool", "")),
+                    arguments=dict(state.get("input", {})),
+                    output=state.get("output"),
+                    is_error=str(state.get("status", "")) in {"error", "failed"},
+                    status=state.get("status"),
+                    raw=raw,
+                ),
+                raw=raw,
+            )
+        ]
     if event_type == "step_finish":
-        return [AgentResultEvent(session_id=raw.get("sessionID"), cost_usd=float(raw.get("part", {}).get("cost", 0) or 0), raw=raw)]
+        return [
+            AgentResultEvent(
+                session_id=raw.get("sessionID"), cost_usd=float(raw.get("part", {}).get("cost", 0) or 0), raw=raw
+            )
+        ]
     return [AgentUnknownEvent(raw=raw)]
 
 
-def opencode_response_from_output(*, events: list[AgentEvent], raw_events: list[dict[str, Any]], exit_code: int,
-                                  parse_failures: int, parse_failure_samples: list[str]) -> AgentResponse:
+def opencode_response_from_output(
+    *,
+    events: list[AgentEvent],
+    raw_events: list[dict[str, Any]],
+    exit_code: int,
+    parse_failures: int,
+    parse_failure_samples: list[str],
+) -> AgentResponse:
     text_parts: list[str] = []
     tool_calls: list[ToolCall] = []
     session_id: str | None = None

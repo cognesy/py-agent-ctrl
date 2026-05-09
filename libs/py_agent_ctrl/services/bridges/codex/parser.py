@@ -29,97 +29,135 @@ def parse_codex_events(raw: dict[str, Any]) -> list[AgentEvent]:
         if item_type == "agent_message":
             return [AgentTextEvent(text=str(item.get("text", "")), raw=raw)]
         if item_type == "command_execution":
-            return [AgentToolCallEvent(tool_call=ToolCall(
-                id=item_id,
-                name="bash",
-                arguments={"command": item.get("command", "")},
-                output=item.get("output"),
-                is_error=int(item.get("exit_code", 0) or 0) != 0,
-                status=item.get("status"),
-                raw=raw,
-            ), raw=raw)]
+            return [
+                AgentToolCallEvent(
+                    tool_call=ToolCall(
+                        id=item_id,
+                        name="bash",
+                        arguments={"command": item.get("command", "")},
+                        output=item.get("output"),
+                        is_error=int(item.get("exit_code", 0) or 0) != 0,
+                        status=item.get("status"),
+                        raw=raw,
+                    ),
+                    raw=raw,
+                )
+            ]
         if item_type == "mcp_tool_call":
-            return [AgentToolCallEvent(tool_call=ToolCall(
-                id=item_id,
-                name=str(item.get("tool", "")),
-                arguments=dict(item.get("arguments", {})),
-                output=item.get("result"),
-                is_error=str(item.get("status", "")) in {"error", "failed", "cancelled"},
-                status=item.get("status"),
-                raw=raw,
-            ), raw=raw)]
+            return [
+                AgentToolCallEvent(
+                    tool_call=ToolCall(
+                        id=item_id,
+                        name=str(item.get("tool", "")),
+                        arguments=dict(item.get("arguments", {})),
+                        output=item.get("result"),
+                        is_error=str(item.get("status", "")) in {"error", "failed", "cancelled"},
+                        status=item.get("status"),
+                        raw=raw,
+                    ),
+                    raw=raw,
+                )
+            ]
         if item_type == "file_change":
-            return [AgentToolCallEvent(tool_call=ToolCall(
-                id=item_id,
-                name="file_change",
-                arguments={"path": item.get("path", ""), "action": item.get("action", "")},
-                output=item.get("diff"),
-                status=item.get("status"),
-                raw=raw,
-            ), raw=raw)]
+            return [
+                AgentToolCallEvent(
+                    tool_call=ToolCall(
+                        id=item_id,
+                        name="file_change",
+                        arguments={"path": item.get("path", ""), "action": item.get("action", "")},
+                        output=item.get("diff"),
+                        status=item.get("status"),
+                        raw=raw,
+                    ),
+                    raw=raw,
+                )
+            ]
         if item_type == "web_search":
-            return [AgentToolCallEvent(tool_call=ToolCall(
-                id=item_id,
-                name="web_search",
-                arguments={"query": item.get("query", "")},
-                output=item.get("results"),
-                status=item.get("status"),
-                raw=raw,
-            ), raw=raw)]
+            return [
+                AgentToolCallEvent(
+                    tool_call=ToolCall(
+                        id=item_id,
+                        name="web_search",
+                        arguments={"query": item.get("query", "")},
+                        output=item.get("results"),
+                        status=item.get("status"),
+                        raw=raw,
+                    ),
+                    raw=raw,
+                )
+            ]
         if item_type == "plan_update":
             return [
                 AgentPlanUpdateEvent(plan=item.get("plan"), raw=raw),
-                AgentToolCallEvent(tool_call=ToolCall(
-                    id=item_id,
-                    name="plan_update",
-                    arguments={},
-                    output=item.get("plan"),
-                    status=item.get("status"),
+                AgentToolCallEvent(
+                    tool_call=ToolCall(
+                        id=item_id,
+                        name="plan_update",
+                        arguments={},
+                        output=item.get("plan"),
+                        status=item.get("status"),
+                        raw=raw,
+                    ),
                     raw=raw,
-                ), raw=raw),
+                ),
             ]
         if item_type == "reasoning":
             text = str(item.get("text", "") or "")
             return [
                 AgentReasoningEvent(text=text, raw=raw),
-                AgentToolCallEvent(tool_call=ToolCall(
+                AgentToolCallEvent(
+                    tool_call=ToolCall(
+                        id=item_id,
+                        name="reasoning",
+                        arguments={},
+                        output=item.get("text"),
+                        status=item.get("status"),
+                        raw=raw,
+                    ),
+                    raw=raw,
+                ),
+            ]
+        return [
+            AgentToolCallEvent(
+                tool_call=ToolCall(
                     id=item_id,
-                    name="reasoning",
+                    name=str(item_type or "unknown"),
                     arguments={},
-                    output=item.get("text"),
+                    output=item,
                     status=item.get("status"),
                     raw=raw,
-                ), raw=raw),
-            ]
-        return [AgentToolCallEvent(tool_call=ToolCall(
-            id=item_id,
-            name=str(item_type or "unknown"),
-            arguments={},
-            output=item,
-            status=item.get("status"),
-            raw=raw,
-        ), raw=raw)]
+                ),
+                raw=raw,
+            )
+        ]
     if event_type == "turn.completed":
         usage = raw.get("usage", {})
         events: list[AgentEvent] = [AgentResultEvent(raw=raw)]
         if isinstance(usage, dict):
-            events.append(AgentUsageEvent(
-                usage=TokenUsage(
-                    input_tokens=usage.get("input_tokens"),
-                    output_tokens=usage.get("output_tokens"),
-                    total_tokens=(usage.get("input_tokens", 0) or 0)
-                    + (usage.get("output_tokens", 0) or 0),
-                    cache_read_tokens=usage.get("cached_input_tokens"),
-                ),
-                raw=raw,
-            ))
+            events.append(
+                AgentUsageEvent(
+                    usage=TokenUsage(
+                        input_tokens=usage.get("input_tokens"),
+                        output_tokens=usage.get("output_tokens"),
+                        total_tokens=(usage.get("input_tokens", 0) or 0) + (usage.get("output_tokens", 0) or 0),
+                        cache_read_tokens=usage.get("cached_input_tokens"),
+                    ),
+                    raw=raw,
+                )
+            )
         events.append(AgentUnknownEvent(raw={"usage": usage}))
         return events
     return [AgentUnknownEvent(raw=raw)]
 
 
-def codex_response_from_output(*, events: list[AgentEvent], raw_events: list[dict[str, Any]], exit_code: int,
-                               parse_failures: int, parse_failure_samples: list[str]) -> AgentResponse:
+def codex_response_from_output(
+    *,
+    events: list[AgentEvent],
+    raw_events: list[dict[str, Any]],
+    exit_code: int,
+    parse_failures: int,
+    parse_failure_samples: list[str],
+) -> AgentResponse:
     text_parts: list[str] = []
     tool_calls: list[ToolCall] = []
     session_id: str | None = None
@@ -140,8 +178,7 @@ def codex_response_from_output(*, events: list[AgentEvent], raw_events: list[dic
                 usage = TokenUsage(
                     input_tokens=usage_data.get("input_tokens"),
                     output_tokens=usage_data.get("output_tokens"),
-                    total_tokens=(usage_data.get("input_tokens", 0) or 0)
-                    + (usage_data.get("output_tokens", 0) or 0),
+                    total_tokens=(usage_data.get("input_tokens", 0) or 0) + (usage_data.get("output_tokens", 0) or 0),
                     cache_read_tokens=usage_data.get("cached_input_tokens"),
                 )
 

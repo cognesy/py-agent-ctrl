@@ -29,10 +29,29 @@ def test_codex_builder_and_parser(monkeypatch):
 
     raw_events = [
         {"type": "thread.started", "thread_id": "thread_stream"},
-        {"type": "item.completed", "item": {"id": "msg_1", "type": "agent_message", "status": "completed", "text": "Hello from codex"}},
-        {"type": "item.completed", "item": {"id": "cmd_1", "type": "command_execution", "status": "completed", "command": "echo hi", "output": "hi", "exit_code": 0}},
-        {"type": "item.completed", "item": {"id": "reason_1", "type": "reasoning", "status": "completed", "text": "I should inspect tests."}},
-        {"type": "item.completed", "item": {"id": "plan_1", "type": "plan_update", "status": "completed", "plan": [{"step": "Run tests"}]}},
+        {
+            "type": "item.completed",
+            "item": {"id": "msg_1", "type": "agent_message", "status": "completed", "text": "Hello from codex"},
+        },
+        {
+            "type": "item.completed",
+            "item": {
+                "id": "cmd_1",
+                "type": "command_execution",
+                "status": "completed",
+                "command": "echo hi",
+                "output": "hi",
+                "exit_code": 0,
+            },
+        },
+        {
+            "type": "item.completed",
+            "item": {"id": "reason_1", "type": "reasoning", "status": "completed", "text": "I should inspect tests."},
+        },
+        {
+            "type": "item.completed",
+            "item": {"id": "plan_1", "type": "plan_update", "status": "completed", "plan": [{"step": "Run tests"}]},
+        },
         {"type": "turn.completed", "usage": {"input_tokens": 9, "cached_input_tokens": 3, "output_tokens": 2}},
     ]
     events = [event for raw in raw_events for event in parse_codex_events(raw)]
@@ -73,10 +92,41 @@ def test_opencode_builder_and_parser(monkeypatch):
     assert argv[argv.index("--agent") + 1] == "coder"
 
     raw_events = [
-        {"type": "step_start", "timestamp": 1, "sessionID": "sess_stream", "part": {"messageID": "msg_1", "id": "part_1", "snapshot": "snap"}},
-        {"type": "text", "timestamp": 2, "sessionID": "sess_stream", "part": {"messageID": "msg_1", "id": "part_2", "text": "Hello OpenCode"}},
-        {"type": "tool_use", "timestamp": 3, "sessionID": "sess_stream", "part": {"messageID": "msg_1", "id": "part_3", "callID": "call_1", "tool": "bash", "state": {"status": "completed", "input": {"command": "pwd"}, "output": {"cwd": "/tmp"}}}},
-        {"type": "step_finish", "timestamp": 4, "sessionID": "sess_stream", "part": {"messageID": "msg_1", "id": "part_4", "cost": 0.42, "tokens": {"input": 11, "output": 5, "reasoning": 1, "cache": {"read": 2, "write": 1}}}},
+        {
+            "type": "step_start",
+            "timestamp": 1,
+            "sessionID": "sess_stream",
+            "part": {"messageID": "msg_1", "id": "part_1", "snapshot": "snap"},
+        },
+        {
+            "type": "text",
+            "timestamp": 2,
+            "sessionID": "sess_stream",
+            "part": {"messageID": "msg_1", "id": "part_2", "text": "Hello OpenCode"},
+        },
+        {
+            "type": "tool_use",
+            "timestamp": 3,
+            "sessionID": "sess_stream",
+            "part": {
+                "messageID": "msg_1",
+                "id": "part_3",
+                "callID": "call_1",
+                "tool": "bash",
+                "state": {"status": "completed", "input": {"command": "pwd"}, "output": {"cwd": "/tmp"}},
+            },
+        },
+        {
+            "type": "step_finish",
+            "timestamp": 4,
+            "sessionID": "sess_stream",
+            "part": {
+                "messageID": "msg_1",
+                "id": "part_4",
+                "cost": 0.42,
+                "tokens": {"input": 11, "output": 5, "reasoning": 1, "cache": {"read": 2, "write": 1}},
+            },
+        },
     ]
     events = [event for raw in raw_events for event in parse_opencode_events(raw)]
     response = opencode_response_from_output(
@@ -111,8 +161,28 @@ def test_pi_builder_and_parser(monkeypatch):
     raw_events = [
         {"type": "session", "version": 3, "id": "pi-session", "cwd": "/tmp", "timestamp": "2025-01-01T00:00:00Z"},
         {"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Hello"}, "message": {}},
-        {"type": "tool_execution_end", "toolCallId": "tool-1", "toolName": "bash", "result": {"ok": True}, "isError": False},
-        {"type": "message_end", "message": {"role": "assistant", "content": [{"type": "text", "text": " world"}], "usage": {"input": 3, "output": 5, "cacheRead": 0, "cacheWrite": 2, "totalTokens": 10, "cost": {"total": 0.12}}}},
+        {
+            "type": "tool_execution_end",
+            "toolCallId": "tool-1",
+            "toolName": "bash",
+            "result": {"ok": True},
+            "isError": False,
+        },
+        {
+            "type": "message_end",
+            "message": {
+                "role": "assistant",
+                "content": [{"type": "text", "text": " world"}],
+                "usage": {
+                    "input": 3,
+                    "output": 5,
+                    "cacheRead": 0,
+                    "cacheWrite": 2,
+                    "totalTokens": 10,
+                    "cost": {"total": 0.12},
+                },
+            },
+        },
     ]
     events = [event for raw in raw_events for event in parse_pi_events(raw)]
     response = pi_response_from_output(
@@ -149,7 +219,11 @@ def test_gemini_builder_and_parser(monkeypatch):
         {"type": "message", "role": "assistant", "content": "Hello", "delta": True},
         {"type": "tool_use", "tool_name": "read_file", "tool_id": "call_1", "parameters": {"path": "README.md"}},
         {"type": "tool_result", "tool_id": "call_1", "status": "success", "output": "contents"},
-        {"type": "result", "status": "success", "stats": {"total_tokens": 100, "input_tokens": 40, "output_tokens": 60, "cached": 5}},
+        {
+            "type": "result",
+            "status": "success",
+            "stats": {"total_tokens": 100, "input_tokens": 40, "output_tokens": 60, "cached": 5},
+        },
     ]
     events = [event for raw in raw_events for event in parse_gemini_events(raw)]
     response = gemini_response_from_output(

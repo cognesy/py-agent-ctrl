@@ -21,8 +21,14 @@ def parse_gemini_events(raw: dict[str, Any]) -> list[AgentEvent]:
     return [AgentUnknownEvent(raw=raw)]
 
 
-def gemini_response_from_output(*, events: list[AgentEvent], raw_events: list[dict[str, Any]], exit_code: int,
-                                parse_failures: int, parse_failure_samples: list[str]) -> AgentResponse:
+def gemini_response_from_output(
+    *,
+    events: list[AgentEvent],
+    raw_events: list[dict[str, Any]],
+    exit_code: int,
+    parse_failures: int,
+    parse_failure_samples: list[str],
+) -> AgentResponse:
     text_parts: list[str] = []
     tool_calls: list[ToolCall] = []
     session_id: str | None = None
@@ -50,14 +56,16 @@ def gemini_response_from_output(*, events: list[AgentEvent], raw_events: list[di
             if isinstance(tool_result, dict):
                 tool_id = str(tool_result.get("tool_id", ""))
                 tool_use = pending_tools.get(tool_id, {})
-                tool_calls.append(ToolCall(
-                    id=tool_id,
-                    name=str(tool_use.get("tool_name", "")),
-                    arguments=dict(tool_use.get("parameters", {})),
-                    output=tool_result.get("output") or tool_result.get("error"),
-                    is_error=str(tool_result.get("status", "")) == "error",
-                    raw=tool_result,
-                ))
+                tool_calls.append(
+                    ToolCall(
+                        id=tool_id,
+                        name=str(tool_use.get("tool_name", "")),
+                        arguments=dict(tool_use.get("parameters", {})),
+                        output=tool_result.get("output") or tool_result.get("error"),
+                        is_error=str(tool_result.get("status", "")) == "error",
+                        raw=tool_result,
+                    )
+                )
 
     return AgentResponse(
         agent_type=AgentType.GEMINI,

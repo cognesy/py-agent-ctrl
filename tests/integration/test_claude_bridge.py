@@ -7,10 +7,7 @@ def test_claude_execute_via_real_cli():
     require_live_agent("claude-code", "claude")
 
     response = (
-        AgentCtrl.claude_code()
-        .with_permission_mode("bypassPermissions")
-        .with_timeout(120)
-        .execute(LIVE_TEST_PROMPT)
+        AgentCtrl.claude_code().with_permission_mode("bypassPermissions").with_timeout(120).execute(LIVE_TEST_PROMPT)
     )
 
     assert_live_response(response)
@@ -20,10 +17,7 @@ def test_claude_stream_via_real_cli():
     require_live_agent("claude-code", "claude")
 
     result = (
-        AgentCtrl.claude_code()
-        .with_permission_mode("bypassPermissions")
-        .with_timeout(120)
-        .stream(LIVE_TEST_PROMPT)
+        AgentCtrl.claude_code().with_permission_mode("bypassPermissions").with_timeout(120).stream(LIVE_TEST_PROMPT)
     )
     events = list(result)
     text_events = [e for e in events if isinstance(e, AgentTextEvent)]
