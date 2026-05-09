@@ -1,6 +1,9 @@
+import pytest
 from py_agent_ctrl import AgentCtrl, AgentTextEvent
 
 from tests.integration.live_helpers import LIVE_TEST_PROMPT, assert_live_response, require_live_agent
+
+pytestmark = pytest.mark.live
 
 
 def test_claude_execute_via_real_cli():

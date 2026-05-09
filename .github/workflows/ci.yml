@@ -18,7 +18,7 @@ jobs:
       - run: uv run python -m ruff format --check .
       - run: uv run python -m ruff check .
       - run: uv run python -m mypy libs/py_agent_ctrl apps
-      - run: uv run python -m pytest -q
+      - run: uv run python -m pytest -q -m "not live"
       - run: uv build --wheel
       - run: |
           wheel="$(find dist -name 'py_agent_ctrl-*.whl' -type f | head -n 1)"

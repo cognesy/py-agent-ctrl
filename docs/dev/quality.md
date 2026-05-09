@@ -13,8 +13,8 @@ uv sync --extra dev
 uv run python -m ruff format --check .
 uv run python -m ruff check .
 uv run python -m mypy libs/py_agent_ctrl apps
-uv run python -m pytest -q
-uv run python -m pytest --cov=py_agent_ctrl --cov-report=term-missing
+uv run python -m pytest -q -m "not live"
+uv run python -m pytest -m "not live" --cov=py_agent_ctrl --cov-report=term-missing
 uv run python -m compileall -q apps libs tests
 uv build --wheel
 ```
@@ -57,6 +57,16 @@ Coverage is measured for `libs/py_agent_ctrl` with a 90% regression floor. The
 current baseline measured during QA hardening was 92% with live-agent integration
 tests skipped by default. Manual live-agent tests are useful for behavior
 confidence, but they are not required to satisfy the coverage floor.
+
+## Live Integration Tests
+
+Tests marked `live` invoke real external agent CLIs. They are excluded from the
+normal local quality lane. Run them manually only when the relevant provider CLI
+is installed and authenticated:
+
+```bash
+PY_AGENT_CTRL_RUN_LIVE_INTEGRATION=1 PY_AGENT_CTRL_LIVE_AGENTS=codex uv run python -m pytest -q tests/integration -m live
+```
 
 ## Ruff Scope
 

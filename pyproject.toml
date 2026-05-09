@@ -55,6 +55,9 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "live: tests that invoke real external agent CLIs and require explicit opt-in",
+]
 
 [tool.coverage.run]
 source = ["libs/py_agent_ctrl"]
