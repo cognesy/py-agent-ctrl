@@ -8,7 +8,7 @@ from py_agent_ctrl.services.bridges.pi.bridge import PiBridge
 
 def test_claude_counts_malformed_json_without_losing_valid_text(monkeypatch):
     monkeypatch.setattr(
-        "py_agent_ctrl.services.bridges.claude_code.command_builder.build_claude_command",
+        "py_agent_ctrl.services.bridges.claude_code.bridge.build_claude_command",
         lambda _request: ["claude", "-p", "ignored"],
     )
     monkeypatch.setattr(
@@ -39,7 +39,7 @@ def test_claude_counts_malformed_json_without_losing_valid_text(monkeypatch):
 
 def test_codex_counts_malformed_json_without_losing_valid_thread(monkeypatch):
     monkeypatch.setattr(
-        "py_agent_ctrl.services.bridges.codex.command_builder.build_codex_command",
+        "py_agent_ctrl.services.bridges.codex.bridge.build_codex_command",
         lambda _request: ["codex", "exec", "ignored"],
     )
     monkeypatch.setattr(
@@ -70,7 +70,7 @@ def test_codex_counts_malformed_json_without_losing_valid_thread(monkeypatch):
 
 def test_codex_accepts_plain_json_final_output(monkeypatch):
     monkeypatch.setattr(
-        "py_agent_ctrl.services.bridges.codex.command_builder.build_codex_command",
+        "py_agent_ctrl.services.bridges.codex.bridge.build_codex_command",
         lambda _request: ["codex", "exec", "ignored"],
     )
     monkeypatch.setattr(
@@ -94,7 +94,7 @@ def test_codex_accepts_plain_json_final_output(monkeypatch):
 
 def test_pi_ignores_user_echo_and_keeps_final_assistant_json(monkeypatch):
     monkeypatch.setattr(
-        "py_agent_ctrl.services.bridges.pi.command_builder.build_pi_command",
+        "py_agent_ctrl.services.bridges.pi.bridge.build_pi_command",
         lambda _request: ["pi", "--mode", "json", "ignored"],
     )
     monkeypatch.setattr(
@@ -125,7 +125,7 @@ def test_pi_ignores_user_echo_and_keeps_final_assistant_json(monkeypatch):
 
 def test_gemini_extracts_text_and_tool_call_ignoring_malformed_json(monkeypatch):
     monkeypatch.setattr(
-        "py_agent_ctrl.services.bridges.gemini.command_builder.build_gemini_command",
+        "py_agent_ctrl.services.bridges.gemini.bridge.build_gemini_command",
         lambda _request: ["gemini", "ignored"],
     )
     monkeypatch.setattr(
@@ -161,7 +161,7 @@ def test_gemini_extracts_text_and_tool_call_ignoring_malformed_json(monkeypatch)
 
 def test_opencode_extracts_text_and_usage_from_step_finish(monkeypatch):
     monkeypatch.setattr(
-        "py_agent_ctrl.services.bridges.opencode.command_builder.build_opencode_command",
+        "py_agent_ctrl.services.bridges.opencode.bridge.build_opencode_command",
         lambda _request: ["opencode", "ignored"],
     )
     monkeypatch.setattr(
