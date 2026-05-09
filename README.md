@@ -26,6 +26,7 @@ uv run python -m ruff format --check .
 uv run python -m ruff check .
 uv run python -m mypy libs/py_agent_ctrl apps
 uv run python -m pytest -q
+uv run python -m pytest --cov=py_agent_ctrl --cov-report=term-missing
 uv run python -m compileall -q apps libs tests
 uv build --wheel
 uv run python -m py_agent_ctrl.cli agents list

@@ -32,6 +32,7 @@ dev = [
     "pytest>=9.0",
     "ruff>=0.15",
     "mypy>=1.0",
+    "pytest-cov>=7.0",
 ]
 
 [build-system]
@@ -54,6 +55,13 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["libs/py_agent_ctrl"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
 
 [tool.mypy]
 python_version = "3.12"

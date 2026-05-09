@@ -14,6 +14,7 @@ uv run python -m ruff format --check .
 uv run python -m ruff check .
 uv run python -m mypy libs/py_agent_ctrl apps
 uv run python -m pytest -q
+uv run python -m pytest --cov=py_agent_ctrl --cov-report=term-missing
 uv run python -m compileall -q apps libs tests
 uv build --wheel
 ```
@@ -40,6 +41,13 @@ installed `ctrlagent` entrypoint.
 Strict mypy covers the importable library under `libs/py_agent_ctrl` and the
 thin runnable shells under `apps`. Tests are intentionally outside the strict
 mypy target for now.
+
+## Coverage
+
+Coverage is measured for `libs/py_agent_ctrl` with a 90% regression floor. The
+current baseline measured during QA hardening was 92% with live-agent integration
+tests skipped by default. Manual live-agent tests are useful for behavior
+confidence, but they are not required to satisfy the coverage floor.
 
 ## Ruff Scope
 
