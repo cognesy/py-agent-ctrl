@@ -8,17 +8,17 @@ Harden `py-agent-ctrl` as both a Python library and the `ctrlagent` CLI by turni
 
 The target state is:
 
-- fast pull-request checks catch formatting, lint, typing, unit, feature, regression, packaging, and docs/example failures;
-- slower or credentialed real-agent checks are available on demand and on a schedule;
+- fast local/repo checks catch formatting, lint, typing, unit, feature, regression, packaging, and docs/example failures;
+- slower or credentialed real-agent checks are available only on manual demand;
 - release confidence includes wheel installability, CLI entrypoint sanity, dependency/security checks, and public API compatibility smoke tests;
-- local developer commands match CI, avoid stale virtualenv script problems, and are documented in one place.
+- local developer commands are `uv`-only, avoid stale virtualenv script problems, and are documented in one place.
 
 ## Current Baseline
 
 The repository already has a useful baseline:
 
 - `pyproject.toml` declares dev dependencies for `pytest`, `ruff`, and `mypy`, plus strict mypy over `libs/py_agent_ctrl`.
-- `.github/workflows/ci.yml` runs `uv sync --extra dev`, `ruff check`, `mypy libs/py_agent_ctrl`, and `pytest -q`.
+- `.github/workflows/ci.yml` exists and documents a basic quality lane, but this repository should not assume an active CI/CD pipeline.
 - Tests are split across `tests/unit`, `tests/feature`, `tests/integration`, and `tests/regression`.
 - Real-agent integration tests exist for Claude Code, Codex, Gemini, OpenCode, and Pi, but they skip unless `PY_AGENT_CTRL_RUN_LIVE_INTEGRATION=1` is set and the relevant CLI is installed.
 - Local verification via module invocation passed:
@@ -28,7 +28,7 @@ The repository already has a useful baseline:
   - `uv build --wheel`
   - `uv run python -m compileall -q apps libs tests`
 
-Important local finding: direct console-script invocation currently fails for `uv run pytest` and `uv run mypy` because the scripts in `.venv/bin` have stale shebangs pointing at `/Users/ddebowczyk/projects/py-agent-ctrl/.venv/...`. Module invocation works and should be used in local docs/CI until the environment issue is fixed or guarded.
+Important local finding: direct console-script invocation currently fails for `uv run pytest` and `uv run mypy` because the scripts in `.venv/bin` have stale shebangs pointing at `/Users/ddebowczyk/projects/py-agent-ctrl/.venv/...`. Module invocation works and should be used in local docs and optional workflows until the environment issue is fixed or guarded.
 
 ## External Guidance Used
 
@@ -37,7 +37,7 @@ Important local finding: direct console-script invocation currently fails for `u
 - Mypy docs confirm strict mode is a bundle of additional checks and can be configured through `[tool.mypy]` in `pyproject.toml`.
 - Pytest docs support centralizing pytest options in project configuration.
 - pytest-cov docs support coverage configuration through pytest and coverage config.
-- pip-audit documentation supports adding dependency vulnerability scanning to Python CI.
+- pip-audit documentation supports adding dependency vulnerability scanning to Python projects.
 
 References:
 
@@ -53,17 +53,17 @@ References:
 ## Constraints
 
 - Preserve the existing architecture: `apps/` for thin runnable shells, `libs/` for importable code, `resources/` for passive assets, `docs/`, and layered `command -> actions -> services`.
-- Use `uv` for dependency management, execution, linting, and tests.
-- Keep normal PR CI fast and deterministic. Do not require authenticated third-party agent CLIs on every pull request.
-- Keep real-agent e2e tests opt-in, scheduled, or manually dispatched because they can consume tokens, require credentials, depend on external CLIs, and take longer.
+- Use `uv` for dependency management, execution, linting, tests, and documented command entrypoints. Do not add `Makefile`, `justfile`, or wrapper scripts in the first hardening pass.
+- Treat this as a git repository, not an active CI/CD deployment system. Workflow files may be kept as optional automation/documentation, but the primary contract is reproducible local `uv` commands.
+- Keep real-agent e2e tests manually dispatched only because they can consume tokens, require credentials, depend on external CLIs, and take longer.
 - Avoid broad rewrites. The hardening should be incremental and independently mergeable.
 - Use `bd` for task tracking; do not duplicate execution tracking with markdown task checkboxes.
 
 ## Proposed Quality Model
 
-### Lane 1: Fast PR Gate
+### Lane 1: Fast Local Quality Gate
 
-Runs on every push and pull request.
+Runs locally before commit/push and may also be mirrored by optional GitHub workflow files.
 
 Recommended checks:
 
@@ -76,11 +76,11 @@ Recommended checks:
 - `uv build --wheel`
 - install the built wheel into a clean temporary environment and run `ctrlagent agents list`
 
-This lane should not run live-agent tests by default.
+This lane should not run live-agent tests by default and should remain expressible as plain `uv` commands.
 
 ### Lane 2: Coverage Gate
 
-Runs on pull requests after the first hardening pass and can be part of the fast gate once stable.
+Runs locally after the first hardening pass and can be part of the fast local gate once stable.
 
 Recommended checks:
 
@@ -100,12 +100,12 @@ Recommended checks:
 - add `ruff format --check`;
 - expand `ruff.lint.select` beyond `E`, `F`, and `I` with conservative rules such as `B`, `UP`, `SIM`, `RUF`, and selected `PTH`/`PL` rules where they fit the codebase;
 - include `apps` in mypy;
-- add type-focused public API smoke tests or pyright/basedpyright only if it catches issues mypy misses without adding too much maintenance load;
+- evaluate pyright/basedpyright only if a documented spike shows it catches meaningful issues mypy misses, such as stricter public API use, enum narrowing, Pydantic model access, or call-site compatibility. Strict mypy remains the default type gate unless the second checker proves its value;
 - keep tests out of strict mypy initially unless a targeted test-typing task proves the cost is low.
 
 ### Lane 4: Live-Agent E2E
 
-Runs via `workflow_dispatch`, schedule, or a protected/manual label.
+Runs only by manual invocation. If a GitHub workflow is kept, it should use `workflow_dispatch` only; no schedule.
 
 Recommended checks:
 
@@ -118,29 +118,28 @@ Recommended checks:
 
 This lane should distinguish unavailable infrastructure from library regressions.
 
-### Lane 5: Security and Dependency Hygiene
+### Lane 5: Minimal Security and Dependency Hygiene
 
-Runs on PR and/or schedule.
+Runs locally and can be mirrored by optional workflow files. Keep the first pass minimal.
 
 Recommended checks:
 
 - dependency vulnerability scan with `pip-audit` or equivalent;
-- GitHub Dependabot or Renovate for Python/Actions updates;
-- secret scanning with a local-friendly tool such as `gitleaks` if acceptable for the repo;
-- optional Semgrep/Bandit pass focused on subprocess, shell, path, and environment handling.
+- optionally add Dependabot or Renovate for Python/GitHub Actions updates if the repo will use GitHub-native automation;
+- defer Semgrep, Bandit, and gitleaks unless a later review shows a concrete need.
 
-The subprocess boundary is core to this library, so security checks should focus on argv construction, environment sanitization, working-directory handling, stderr/secret leakage, and timeout behavior.
+The subprocess boundary is core to this library, but the first hardening pass should start with dependency audit and documented subprocess review notes rather than a broad scanner rollout.
 
 ### Lane 6: Docs and Example Drift
 
-Runs on PR or as a docs-specific check.
+Runs locally or as an optional docs-specific workflow check.
 
 Recommended checks:
 
 - validate README and `docs/user/*.md` command snippets where possible;
 - test Python snippets that do not require live agents;
 - verify docs mention the correct local commands, especially module invocation if console scripts are stale;
-- keep a single `make`/`just`/script-free command reference if the project prefers pure `uv` commands.
+- keep a single command reference using pure `uv` commands.
 
 ### Lane 7: Release Readiness
 
@@ -160,14 +159,14 @@ Recommended checks:
 
 The following tasks should be created under epic `bd-4g1` after this plan is reviewed.
 
-### 1. Normalize Local and CI Quality Commands
+### 1. Normalize Local and Optional Workflow Quality Commands
 
-Purpose: make local verification and CI invocation reliable and identical.
+Purpose: make local verification reliable and keep optional workflow files aligned with the same commands.
 
 Scope:
 
-- update README and/or docs with canonical commands using `uv run python -m ...`;
-- update `.github/workflows/ci.yml` to use module invocation for `ruff`, `mypy`, and `pytest`;
+- update README and/or docs with canonical `uv` commands using `uv run python -m ...`;
+- update `.github/workflows/ci.yml`, if retained, to use module invocation for `ruff`, `mypy`, and `pytest`;
 - add a concise quality command section to development docs;
 - investigate whether stale `.venv/bin` shebangs can be repaired by recreating `.venv`, but do not rely on that as the only fix.
 
@@ -183,7 +182,7 @@ Purpose: move from minimal linting to a stronger static lint baseline without cr
 
 Scope:
 
-- add `uv run python -m ruff format --check .` to CI;
+- add `uv run python -m ruff format --check .` to the documented quality lane and optional workflow;
 - run `ruff format` only if needed and keep formatting changes isolated;
 - expand lint rules conservatively;
 - add per-file ignores only with narrow justification;
@@ -200,7 +199,7 @@ Purpose: ensure the shipped CLI layer is covered by static typing, not only `lib
 
 Scope:
 
-- include `apps` and `libs` in mypy configuration or CI command;
+- include `apps` and `libs` in mypy configuration and documented quality commands;
 - decide whether `py_agent_ctrl.cli` and `apps/cli/main.py` need annotations or small refactors;
 - keep strict mode unless a specific override is justified;
 - avoid broad typing of tests in this task.
@@ -220,7 +219,7 @@ Scope:
 - configure coverage for `libs/py_agent_ctrl`;
 - measure current baseline;
 - choose an initial threshold that current tests pass without gaming the number;
-- produce terminal and XML reports for CI;
+- produce terminal reports by default and XML reports only if useful for optional workflow artifacts or future tooling;
 - document intentionally uncovered live-agent paths.
 
 Verification:
@@ -233,7 +232,7 @@ Purpose: catch packaging and console-entrypoint regressions before release.
 
 Scope:
 
-- add CI step to run `uv build --wheel`;
+- add documented quality step, and optional workflow step if retained, to run `uv build --wheel`;
 - install the built wheel into a clean temp environment;
 - verify `import py_agent_ctrl`;
 - verify `ctrlagent agents list`;
@@ -253,7 +252,7 @@ Scope:
 - add pytest markers such as `unit`, `feature`, `regression`, `live`;
 - mark real-agent tests under `tests/integration` as live;
 - configure pytest marker registration;
-- update CI fast lane to run non-live tests;
+- update the fast local lane and optional workflow to run non-live tests;
 - preserve local command for running all non-live tests.
 
 Verification:
@@ -261,13 +260,13 @@ Verification:
 - `uv run python -m pytest -q -m "not live"`
 - `uv run python -m pytest -q tests/integration` should skip live tests unless enabled.
 
-### 7. Add Manual/Scheduled Live-Agent E2E Workflow
+### 7. Add Manual Live-Agent E2E Command/Workflow
 
-Purpose: verify actual external CLIs without blocking every PR.
+Purpose: verify actual external CLIs without blocking the normal local quality workflow.
 
 Scope:
 
-- add GitHub Actions workflow or job with `workflow_dispatch`;
+- add a documented manual command and, if useful, a GitHub Actions workflow with `workflow_dispatch` only;
 - allow selecting providers via input mapped to `PY_AGENT_CTRL_LIVE_AGENTS`;
 - set `PY_AGENT_CTRL_RUN_LIVE_INTEGRATION=1`;
 - collect provider CLI version diagnostics;
@@ -276,7 +275,7 @@ Scope:
 
 Verification:
 
-- manually dispatch workflow for one configured provider;
+- manually run the command or dispatch the workflow for one configured provider;
 - inspect logs for explicit provider status and test result.
 
 ### 8. Add Security and Dependency Scanning
@@ -286,15 +285,15 @@ Purpose: catch dependency vulnerabilities and obvious subprocess/env mistakes.
 Scope:
 
 - add `pip-audit` or equivalent dependency vulnerability scan;
-- add Dependabot or Renovate config for GitHub Actions and Python dependencies;
-- evaluate lightweight secret scanning with `gitleaks`;
-- evaluate Bandit/Semgrep rules focused on subprocess, path, env, shell, and secret leakage;
+- document how to run the audit locally with `uv`;
+- optionally add Dependabot or Renovate only if GitHub-native automation is desired for this git repo;
+- defer gitleaks, Bandit, and Semgrep to later tasks unless a concrete finding justifies them;
 - document any ignored findings with rationale.
 
 Verification:
 
 - dependency audit command passes or reports documented accepted risk;
-- scanner configs exist and run in CI or scheduled workflow.
+- minimal scanner command is documented and passes or reports documented accepted risk.
 
 ### 9. Add Docs and Example Validation
 
@@ -320,7 +319,7 @@ Scope:
 
 - document release QA in `docs/dev`;
 - include lint, type, non-live tests, coverage, wheel/sdist build, install smoke, docs check, and security scan;
-- optionally add a manual release-check workflow;
+- optionally add a manual release-check workflow only if useful as a repo-local automation aid;
 - verify package metadata and README rendering if a suitable tool is added.
 
 Verification:
@@ -337,7 +336,7 @@ Suggested execution order:
 4. Add coverage.
 5. Add wheel install smoke tests.
 6. Separate fast tests from live-agent e2e tests.
-7. Add manual/scheduled live-agent e2e workflow.
+7. Add manual live-agent e2e command/workflow.
 8. Add security and dependency scanning.
 9. Add docs/example validation.
 10. Add release readiness checklist/workflow.
@@ -357,18 +356,18 @@ Tasks 6, 8, and 9 can proceed independently after task 1 if needed.
 
 - Expanded Ruff rules can create churn. Mitigation: add rule families incrementally and keep per-file ignores narrow.
 - Coverage thresholds can incentivize low-value tests. Mitigation: set a baseline threshold first, then raise only around high-risk modules.
-- Live-agent tests can be flaky, expensive, or blocked by credentials. Mitigation: keep them manual/scheduled, provider-scoped, and diagnostic-rich.
-- Security scanners can produce noisy findings around intentional subprocess use. Mitigation: tune rules around actual risk areas instead of accepting broad ignore lists.
+- Live-agent tests can be flaky, expensive, or blocked by credentials. Mitigation: keep them manual-only, provider-scoped, and diagnostic-rich.
+- Security scanners can produce noisy findings around intentional subprocess use. Mitigation: start minimal with dependency audit and add broader scanners only when justified by concrete risk.
 - Docs example testing can become brittle if examples are too high-level. Mitigation: only test snippets that can run without external agents, and smoke CLI commands that do not execute live providers.
 
-## Open Questions for Review
+## Review Decisions
 
-- Should the project prefer pure `uv` commands only, or is adding a `justfile`/`Makefile` acceptable for discoverability?
-- Should live-agent e2e run on a schedule, only manual dispatch, or both?
-- Which providers have reliable credentials available in CI today?
-- Is a second type checker such as pyright/basedpyright worth the maintenance cost, or should strict mypy remain the only type gate for now?
-- Should security scanning be minimal (`pip-audit` plus Dependabot) or include Semgrep/Bandit/gitleaks from the first hardening pass?
+- Use pure `uv` commands for now. Do not add a `Makefile` or `justfile`.
+- Live-agent e2e should be manual only. Do not add scheduled live-agent runs.
+- There is no active CI/CD pipeline and no reliable provider credentials available in CI today. Treat this as a git repo with reproducible local commands and optional workflow files.
+- Strict mypy remains the default type gate. A second checker such as pyright/basedpyright is acceptable only after a bounded spike justifies the added value.
+- Keep security scanning minimal in the first pass: dependency audit plus optional dependency-update automation. Defer Semgrep, Bandit, and gitleaks.
 
 ## Review Decision Needed
 
-This plan is ready for human review. After approval, create the child bd tasks under epic `bd-4g1` with full execution context and dependency links matching the proposed graph above.
+This plan has incorporated the first review decisions. After explicit approval to proceed, create the child bd tasks under epic `bd-4g1` with full execution context and dependency links matching the proposed graph above.
