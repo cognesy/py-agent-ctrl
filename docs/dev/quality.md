@@ -59,6 +59,19 @@ current baseline measured during QA hardening was 92% with live-agent integratio
 tests skipped by default. Manual live-agent tests are useful for behavior
 confidence, but they are not required to satisfy the coverage floor.
 
+## Docs Examples
+
+Safe local README and user-doc examples are covered by feature smoke tests:
+
+```bash
+uv run python -m pytest -q tests/feature/test_docs_examples.py tests/feature/test_ctrlagent_cli.py
+```
+
+The docs classify examples into two groups: safe local metadata and builder
+checks, or live-agent examples that launch external CLIs. Live-agent examples
+must remain labeled as requiring the selected provider CLI to be installed and
+authenticated.
+
 ## Live Integration Tests
 
 Tests marked `live` invoke real external agent CLIs. They are excluded from the

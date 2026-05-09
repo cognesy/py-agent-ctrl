@@ -2,6 +2,10 @@
 
 `ctrlagent` is the thin command-layer shell over the same action layer used by the Python API.
 
+`agents list` and `agents capabilities` are safe local metadata commands.
+`execute`, `stream`, `resume`, and `continue` invoke external provider CLIs, so
+the selected CLI must be installed and authenticated first.
+
 ## List Agents
 
 ```bash

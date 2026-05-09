@@ -39,6 +39,9 @@ lane, including the isolated wheel install smoke.
 
 ## Python API
 
+The execution and streaming examples below invoke external provider CLIs. The
+selected CLI must be installed and authenticated before running them.
+
 ### Execute (blocking)
 
 ```python
@@ -128,6 +131,11 @@ The core error taxonomy also includes `AgentExecutionError`,
 `BinaryNotFoundError` for binary preflight failures.
 
 ## CLI
+
+The `execute`, `stream`, `resume`, and `continue` commands invoke external
+provider CLIs. The selected CLI must be installed and authenticated before
+running those commands. The `agents list` and `agents capabilities` commands are
+safe local metadata checks.
 
 ```bash
 uv run ctrlagent agents list

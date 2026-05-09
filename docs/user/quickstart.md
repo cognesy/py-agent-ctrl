@@ -2,6 +2,8 @@
 
 ## Python
 
+This example invokes the Claude Code CLI, so `claude` must be installed and authenticated first.
+
 ```python
 from py_agent_ctrl import AgentCtrl
 
@@ -10,6 +12,8 @@ print(response.text)
 ```
 
 ## CLI
+
+This command invokes the Claude Code CLI, so `claude` must be installed and authenticated first.
 
 ```bash
 uv run ctrlagent execute --agent claude-code "Summarize this repository."
