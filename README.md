@@ -35,7 +35,7 @@ uv run python -m py_agent_ctrl.cli agents list
 Prefer `uv run python -m ...` for Python tools. That form avoids stale
 virtualenv console-script shebangs and matches the optional workflow command
 shape. See [docs/dev/quality.md](docs/dev/quality.md) for the full local quality
-lane.
+lane, including the isolated wheel install smoke.
 
 ## Python API
 

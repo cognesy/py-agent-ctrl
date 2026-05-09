@@ -33,8 +33,17 @@ For the editable checkout, run:
 uv run python -m py_agent_ctrl.cli agents list
 ```
 
-Later QA hardening tasks will add a clean wheel install smoke test for the
-installed `ctrlagent` entrypoint.
+For the built wheel, run an isolated install smoke:
+
+```bash
+uv build --wheel
+wheel="$(find dist -name 'py_agent_ctrl-*.whl' -type f | head -n 1)"
+uv run --isolated --with "$wheel" python -c "import py_agent_ctrl; print(py_agent_ctrl.__name__)"
+uv run --isolated --with "$wheel" python -c "import importlib.resources as r; assert r.files('py_agent_ctrl').joinpath('py.typed').is_file()"
+uv run --isolated --with "$wheel" ctrlagent agents list
+```
+
+This smoke installs the wheel artifact, not the editable checkout.
 
 ## Type Checking
 
